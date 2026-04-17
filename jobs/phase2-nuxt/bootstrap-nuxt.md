@@ -33,7 +33,7 @@ This is the foundation file every Phase 2 task builds on. Getting it right means
   - **no other deps in this task** — each bootstrap task adds its own
 - [ ] `app/nuxt.config.ts` with:
   - `ssr: true`
-  - `typescript: { strict: true, typeCheck: true }`
+  - `typescript: { strict: true, typeCheck: false }` — typecheck runs explicitly via `npm run typecheck` (which calls `nuxi typecheck`) and is enforced by CI + the `task-complete-gate.sh` hook. Setting `typeCheck: true` would pull `vue-tsc` as a peer dep and run it on every dev/build, slowing iteration. If we want in-build typecheck later, add `vue-tsc` to devDeps in a separate task.
   - `devtools: { enabled: false }` (avoid shipping devtools UI)
   - `nitro: { experimental: { websocket: true } }` (needed for SSE progress in Phase 2 api-jobs-events-sse)
   - `compatibilityDate: '2025-01-01'` (or latest Nuxt-recommended)
