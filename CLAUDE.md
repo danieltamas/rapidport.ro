@@ -181,6 +181,7 @@ PostgreSQL connection via `DATABASE_URL` in `.env` (SSL required, `sslmode=requi
 
 ## Critical Rules
 
+- **NEVER start dev or preview servers from CLI.** Dani runs `rundev` to manage all local project servers. Agents must not run `npm run dev`, `npm start`, `nuxi dev`, `nuxi preview`, or any command that starts a persistent process. One-shot commands (`nuxi typecheck`, `nuxi build`, `npm test`, `npm install`) are fine. For verifying a Nuxt app "works", rely on typecheck + build + file-structure inspection; Dani exercises running behavior via rundev.
 - **ENGLISH ONLY in all code.** Variable names, function names, type names, file names, DB column names, API responses, admin UI text, comments — everything MUST be in English. The ONLY exceptions are: (1) end-user Romanian copy (landing page, user-facing UI, user emails, error messages shown to accountants), (2) legal domain content (Romanian accounting terminology in mappers and canonical schema — e.g., `cif`, `gestiune`). If in doubt, use English.
 - **Every mutation endpoint (POST/PUT/PATCH/DELETE) MUST be CSRF-protected** (`nuxt-csurf` or double-submit cookie). Webhooks are exempt via provider signature.
 - **Every job endpoint MUST call `assertJobAccess(jobId, event)`** before any other logic. No exceptions.
