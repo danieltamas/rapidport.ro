@@ -146,7 +146,7 @@ If a hook blocks you, **fix the issue** — do not try to bypass it.
 ## Stack
 
 - **Web app**: Nuxt 3 (SSR + Nitro) on Node 22 LTS — `app/`
-- **UI kit**: Mantine v7+ with full override (see Design System below) — `app/components/primitives/`
+- **UI kit**: `shadcn-nuxt` (Vue port of shadcn/ui) + Tailwind v4 via `@tailwindcss/vite` — components generated into `app/components/ui/` with our theme wired via CSS `@theme`
 - **Database**: PostgreSQL 16 (single DB, multi-schema optional) — `app/server/db/schema.ts`, `app/drizzle/`
 - **ORM**: Drizzle — SQL transparency, no query builders, raw `sql` template when needed
 - **Queue**: pg-boss (reuses Postgres, no Redis) — `app/server/utils/queue.ts`
@@ -210,8 +210,9 @@ PostgreSQL connection via `DATABASE_URL` in `.env` (SSL required, `sslmode=requi
 
 Rapidport's UI is "Infrastructure-grade technical" — reference min.io. Dark-first for admin, dark-leading for public. Not consumer SaaS, not cutesy. Read SPEC.md's *UI Design System* section for the full spec; rules below are enforced at every agent touch:
 
-- **Theme tokens centralized in `app/theme/index.ts`.** No hardcoded colors in components, ever. All colors come from tokens.
-- **Primitives layer (`app/components/primitives/`) is the ONLY consumer of Mantine.** Pages and admin routes compose from `Button`, `Input`, `Card`, `Table`, `Badge`, `Alert` primitives — never from `@mantine/core` directly.
+- **Theme tokens centralized in `app/theme/index.ts` + `app/assets/css/tailwind.css`.** TS file is the authoritative source; CSS file mirrors the values as custom properties + registers them via Tailwind's `@theme` directive. No hardcoded colors in components, ever. If you change a token, update BOTH files — drift is a review-block.
+- **shadcn primitives live at `app/components/ui/`.** Generated via `npx shadcn-vue@latest add <name>`. You own the source; customize freely to match theme. Pages and admin routes import from `~/components/ui/` directly.
+- **No Mantine, no @mantine/* packages, no React.** If any appear in `package.json`, that's a review-block.
 - **Fonts**: Inter (body) + JetBrains Mono (technical data — CIFs, field names, IDs, timestamps, amounts in reports) via `@fontsource/inter` and `@fontsource/jetbrains-mono`. Self-host — no Google Fonts linking.
 - **Signature accent**: `#C72E49` only. No gradients. No pastels.
 - **Buttons**: rectangular, 6px radius. Primary = red fill + white text. Secondary = transparent + outline. Destructive = red outline + red text on transparent (NEVER red fill). Heights 32/40/48. Always labeled — no icon-only buttons without `aria-label`.

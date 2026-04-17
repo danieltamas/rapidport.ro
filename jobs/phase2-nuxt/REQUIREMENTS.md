@@ -13,9 +13,13 @@ Dependencies, infrastructure, environment, and external service credentials need
   "dependencies": {
     "nuxt": "^3.13.0",
     "vue": "^3.5.0",
-    "@mantine/core": "^7.13.0",
-    "@mantine/hooks": "^7.13.0",
-    "@mantine/form": "^7.13.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^3.0.0",
+    "lucide-vue-next": "^0.400.0",
+    "reka-ui": "^2.0.0",
     "drizzle-orm": "^0.33.0",
     "pg": "^8.12.0",
     "pg-boss": "^10.0.0",
@@ -40,15 +44,18 @@ Dependencies, infrastructure, environment, and external service credentials need
 ```json
 {
   "devDependencies": {
+    "shadcn-nuxt": "^2.0.0",
     "drizzle-kit": "^0.24.0",
+    "@types/pg": "^8.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0",
     "@vitest/coverage-v8": "^2.0.0",
-    "@testcontainers/postgresql": "^10.0.0",
-    "gitleaks": "^8.0.0"
+    "@testcontainers/postgresql": "^10.0.0"
   }
 }
 ```
+
+**UI stack note:** `tailwindcss` + `@tailwindcss/vite` + `class-variance-authority` + `clsx` + `tailwind-merge` + `lucide-vue-next` + `reka-ui` are shadcn-vue's peer requirements. `shadcn-nuxt` is the Nuxt module that registers the CLI + auto-imports; components generated via `npx shadcn-vue@latest add <name>` live in `app/components/ui/`. No React, no @mantine, no vue-tsc (typecheck runs explicitly via `nuxi typecheck`). `gitleaks` is a binary installed via brew, not npm.
 
 **Rules:**
 - Pin major versions per SPEC's stability requirements.

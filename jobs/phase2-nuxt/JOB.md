@@ -16,7 +16,7 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 
 **Entry condition:** `phase1-worker` gate = passed for all groups EXCEPT `bootstrap`. CLI + pg-boss consumer must be production-ready before `auth-*`, `api-*`, `pages-*`, `gdpr-cleanup`, and `email-guide` groups start.
 
-**Bootstrap exception:** the `bootstrap` group (Nuxt scaffold, theme tokens, fonts, Mantine override, primitives, Zod env validation, Drizzle baseline schema) depends on NO Phase 0 or Phase 1 output. It runs immediately in parallel with Phase 0 discovery — unblocking the Drizzle schema for Phase 1's worker (no raw-SQL stopgap) and priming the foundation so later Phase 2 groups layer onto a running app.
+**Bootstrap exception:** the `bootstrap` group (Nuxt scaffold, theme tokens, fonts, Zod env validation, Drizzle baseline schema, shadcn-nuxt + Tailwind v4 setup, shadcn primitives) depends on NO Phase 0 or Phase 1 output. It runs immediately in parallel with Phase 0 discovery — unblocking the Drizzle schema for Phase 1's worker (no raw-SQL stopgap) and priming the foundation so later Phase 2 groups layer onto a running app.
 
 ---
 
@@ -48,10 +48,11 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 
 | Date | Task | Status | Merge commit |
 | --- | --- | --- | --- |
-| 2026-04-17 | `bootstrap / bootstrap-nuxt` | done (on group branch) | `0179d3b` |
-| 2026-04-17 | `bootstrap / bootstrap-theme` | done (on group branch) | `5955b73` |
-| 2026-04-17 | `bootstrap / bootstrap-env` | done (on group branch) | `33cd6ad` |
-| 2026-04-17 | `bootstrap / bootstrap-fonts` | done (on group branch) | `cb5fae1` |
+| 2026-04-17 | `bootstrap / bootstrap-nuxt` | done (on main) | `0179d3b` (squash) → `908167b` (merge to main) |
+| 2026-04-17 | `bootstrap / bootstrap-theme` | done (on main) | `5955b73` (squash) → `908167b` (merge to main) |
+| 2026-04-17 | `bootstrap / bootstrap-env` | done (on main) | `33cd6ad` (squash) → `908167b` (merge to main) |
+| 2026-04-17 | `bootstrap / bootstrap-fonts` | done (on main) | `cb5fae1` (squash) → `908167b` (merge to main) |
+| 2026-04-17 | `bootstrap / bootstrap-drizzle` | done (on main) | `ae4e284` |
 
 
 
@@ -109,12 +110,12 @@ Sequential. Lays the foundation for every downstream task.
 | # | Task | Branch | Priority | Files touched |
 | --- | --- | --- | --- | --- |
 | 1 | `bootstrap-nuxt` | `...-bootstrap-nuxt` | critical | `app/package.json`, `app/nuxt.config.ts`, `app/tsconfig.json` |
-| 2 | `bootstrap-theme` | `...-bootstrap-theme` | critical | `app/theme/index.ts` (design tokens) |
+| 2 | `bootstrap-theme` | `...-bootstrap-theme` | critical | `app/theme/index.ts` (design tokens — TypeScript source of truth) |
 | 3 | `bootstrap-fonts` | `...-bootstrap-fonts` | high | `@fontsource/inter`, `@fontsource/jetbrains-mono` wired in `nuxt.config.ts` |
-| 4 | `bootstrap-mantine-override` | `...-bootstrap-mantine-override` | critical | `app/plugins/mantine.ts` — MantineProvider with full token override; zero Mantine defaults visible |
-| 5 | `bootstrap-primitives` | `...-bootstrap-primitives` | critical | `app/components/primitives/{Button,Input,Card,Table,Badge,Alert}.vue` |
-| 6 | `bootstrap-env` | `...-bootstrap-env` | critical | `app/server/utils/env.ts` — Zod validation at boot per CODING.md §13.1 |
-| 7 | `bootstrap-drizzle` | `...-bootstrap-drizzle` | critical | `app/server/db/{schema.ts,client.ts}`, `app/drizzle/`, `app/package.json` scripts, **takes over from Phase 1's `migrations/001_worker_bootstrap.sql`** |
+| 4 | `bootstrap-env` | `...-bootstrap-env` | critical | `app/server/utils/env.ts` — Zod validation at boot per CODING.md §13.1 |
+| 5 | `bootstrap-drizzle` | `...-bootstrap-drizzle` | critical | `app/server/db/{schema.ts,client.ts}`, `app/drizzle/`, `app/package.json` scripts, **takes over from Phase 1's `migrations/001_worker_bootstrap.sql`** |
+| 6 | `bootstrap-shadcn-setup` | `...-bootstrap-shadcn-setup` | critical | `shadcn-nuxt` module + Tailwind v4 (`@tailwindcss/vite`), `app/assets/css/tailwind.css` mapping theme tokens to shadcn CSS vars, `app/components.json`, `app/lib/utils.ts` — supersedes the original Mantine-override task (Mantine is React-only; see bootstrap-shadcn-setup.md Background) |
+| 7 | `bootstrap-primitives` | `...-bootstrap-primitives` | critical | `npx shadcn-vue@latest add button input card table badge alert` — generated components land in `app/components/ui/*.vue` |
 
 ---
 
@@ -326,9 +327,9 @@ Phase 2 is complete when ALL of these are true:
 - [ ] Admin dashboard functional: Google OAuth allowlist enforced, every action logs to `admin_audit_log`
 - [ ] Admin session IP-binding enforced (change IP → forced re-auth)
 - [ ] Admin access to any job logged
-- [ ] UI matches design system: Mantine defaults overridden, dark theme applied, Inter + JetBrains Mono loaded, zero anti-patterns from SPEC UI §"Anti-patterns"
-- [ ] Theme tokens centralized in `app/theme/` — no hardcoded colors in components
-- [ ] Primitives layer exists and is the only consumer of `@mantine/core`
+- [ ] UI matches design system: Rapidport theme tokens applied via Tailwind `@theme`, dark mode default, Inter + JetBrains Mono loaded, zero anti-patterns from SPEC UI §"Anti-patterns"
+- [ ] Theme tokens centralized in `app/theme/index.ts` (TS) + `app/assets/css/tailwind.css` (CSS) — no hardcoded colors in components
+- [ ] shadcn primitives in `app/components/ui/` use the theme vars; no Mantine, no React, no `@mantine/*` in `package.json`
 - [ ] All S.13 security gate items verified
 - [ ] Automated security tests in CI pass (headers, CSRF, rate limits, webhook signatures, admin allowlist)
 

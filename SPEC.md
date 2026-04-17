@@ -120,7 +120,7 @@ A web-based SaaS that converts a WinMentor company database export into SAGA-com
 | Layer | Choice | Why |
 |---|---|---|
 | Frontend + Backend + Admin | Nuxt 3 (SSR) on Node 22 LTS | Single codebase, single deploy. |
-| UI kit | Mantine (via Nuxt module) | Consistent patterns. Admin + public share components. |
+| UI kit | shadcn-nuxt (Vue port of shadcn/ui) + Tailwind v4 | You own the source; atomic primitives; dark-first; no theme to fight. Matches Dani's existing stack in other projects. |
 | Database | PostgreSQL 16 | Everything + pg-boss + rate_limits. |
 | ORM | Drizzle | SQL transparency. |
 | Queue | pg-boss | Reuses Postgres. |
@@ -711,12 +711,13 @@ Consistent with public dark aesthetic. Specific rules:
 
 ### Implementation notes for Claude Code
 
-- Use **Mantine v7+** as component base. Override its default theme with the tokens above via `MantineProvider` theme config.
-- Mantine defaults (blue primary, rounded buttons, light mode) MUST be overridden. Do not ship with Mantine defaults visible.
-- Create `app/theme/index.ts` with the full token set as TypeScript constants. Import everywhere. No hardcoded colors in component files.
-- Create `app/components/primitives/` for the restyled building blocks: `Button`, `Input`, `Card`, `Table`, `Badge`, `Alert`. Pages compose from these, never from Mantine directly.
+- Use **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4** via `@tailwindcss/vite`. Shadcn's philosophy: components are generated into `app/components/ui/` and you own the source — customize them freely, no theme provider to override.
+- Theme tokens live in `app/theme/index.ts` as the TypeScript source of truth. A mirrored CSS file at `app/assets/css/tailwind.css` defines matching CSS custom properties and registers them as Tailwind utilities via `@theme`. Shadcn components use `bg-background`, `text-foreground`, `bg-primary`, etc. — those Tailwind classes resolve through our theme vars to Rapidport's values.
+- Generate primitives via `npx shadcn-vue@latest add <name>` — start with `Button`, `Input`, `Card`, `Table`, `Badge`, `Alert`. Pages and admin routes import from `~/components/ui/` directly (that's where shadcn drops them); there is no additional "primitives wrapper" layer.
 - Inter + JetBrains Mono via `@fontsource/inter` and `@fontsource/jetbrains-mono` packages. Self-host, don't link Google Fonts (privacy + speed).
-- Dark mode is default everywhere except `/legal/*` pages (light for readability of long text).
+- Dark mode is default everywhere except `/legal/*` pages (light for readability of long text). Light mode opts in via `class="light"` on a wrapper element — no FOUC flicker, no theme provider.
+- `reka-ui` is shadcn-vue's headless primitive base (Vue equivalent of Radix); it comes in transitively.
+- No React, no Mantine, no @mantine/* dependencies anywhere in the tree.
 - Test on real hardware: this design only works if rendering is crisp. Subpixel font rendering matters.
 
 ---

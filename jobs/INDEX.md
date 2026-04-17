@@ -10,7 +10,7 @@ Master index of all jobs for the rapidport.ro project. See `SPEC.md` for the pro
 | --- | --- | --- | --- | --- | --- |
 | `phase0-discovery` | Phase 0 — Discovery & Validation | in_progress (samples acquired) | 2–3 days | SPEC §0.5 | [JOB.md](./phase0-discovery/JOB.md) |
 | `phase1-worker` | Phase 1 — Core Pipeline (Python worker) | blocked on phase0 | 5–7 days | SPEC §1.10 | [JOB.md](./phase1-worker/JOB.md) |
-| `phase2-nuxt` | Phase 2 — Nuxt App, Admin, Productization | `bootstrap` group unblocked (parallel with phase0); rest blocked on phase1 | 5–7 days | SPEC §2.8 | [JOB.md](./phase2-nuxt/JOB.md) |
+| `phase2-nuxt` | Phase 2 — Nuxt App, Admin, Productization | `bootstrap` group: 5/7 done on main (nuxt, theme, env, fonts, drizzle). Remaining: shadcn-setup, primitives. Other groups blocked on phase1. | 5–7 days | SPEC §2.8 | [JOB.md](./phase2-nuxt/JOB.md) |
 
 ## Archived
 

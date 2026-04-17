@@ -9,8 +9,10 @@ Current system architecture. Updated after every task that changes routes, schem
 Pre-production. Pre-launch. Three jobs in progress:
 
 - `phase0-discovery` — samples acquired; `table-inventory` + `saga-import-schema` tasks ready to run
-- `phase2-nuxt/bootstrap` group — 4/7 tasks done on group branch (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`); 3 remaining (`bootstrap-drizzle`, `bootstrap-mantine-override`, `bootstrap-primitives`); group not yet merged to main
+- `phase2-nuxt/bootstrap` group — **5/7 tasks done on main** (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`, `bootstrap-drizzle`). 2 remaining (`bootstrap-shadcn-setup`, `bootstrap-primitives`).
 - `phase1-worker` and rest of `phase2-nuxt` — blocked per SOP
+
+**UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
 
 See `jobs/INDEX.md` for live status.
 
@@ -29,14 +31,25 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   ├── app.vue                        # minimal <NuxtLayout><NuxtPage /></NuxtLayout>
 │   ├── pages/
 │   │   └── index.vue                  # "Rapidport — in progress" placeholder (to be replaced by pages-landing)
-│   ├── theme/                         # design tokens — single source of truth
+│   ├── theme/                         # design tokens — TypeScript source of truth
 │   │   ├── index.ts                   # color (dark+light+accent+semantic), fontFamily, fontScale, fontWeight, space, radius, zIndex
 │   │   └── types.ts                   # inferred TypeScript types for props (ColorToken, FontScaleToken, etc.)
 │   ├── server/
+│   │   ├── db/
+│   │   │   ├── schema.ts              # re-exports all sibling schema files
+│   │   │   ├── schema/
+│   │   │   │   ├── jobs.ts            # minimal jobs table — Phase 1 worker uses progress_* cols
+│   │   │   │   ├── mapping_cache.ts   # cached Haiku field mappings, unique (source, table, field)
+│   │   │   │   └── ai_usage.ts        # per-call Anthropic token + cost tracking
+│   │   │   └── client.ts              # pg Pool (max 20) + Drizzle instance, exports `db` and `pool`
 │   │   ├── utils/
-│   │   │   └── env.ts                 # Zod EnvSchema; the only reader of process.env in the codebase
+│   │   │   └── env.ts                 # Zod EnvSchema; the only reader of process.env in app code
 │   │   └── plugins/
 │   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
+│   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
+│   ├── drizzle/
+│   │   ├── 0000_steady_malcolm_colcord.sql   # baseline migration — jobs, mapping_cache, ai_usage
+│   │   └── meta/                      # drizzle-kit journal + snapshot
 │   └── .nvmrc                         # Node 22
 
 ├── .env.example                       # env placeholders — real .env is gitignored
@@ -86,6 +99,9 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 | `zod` | `^3.23` | installed |
 | `@fontsource/inter` | `^5.2` | installed (weights 400/500/600) |
 | `@fontsource/jetbrains-mono` | `^5.2` | installed (weight 400) |
+| `drizzle-orm` | `^0.33` | installed |
+| `pg` | `^8.12` | installed |
+| `pg-boss` | `^10.0` | installed (not yet initialized — Phase 2 `queue` tasks will wire) |
 
 ### Dev
 
