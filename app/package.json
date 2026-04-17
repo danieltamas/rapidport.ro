@@ -12,18 +12,27 @@
     "preview": "nuxt preview",
     "postinstall": "nuxi prepare",
     "typecheck": "nuxi typecheck",
-    "lint": "echo 'ESLint not configured yet — see bootstrap-eslint task'"
+    "lint": "echo 'ESLint not configured yet — see bootstrap-eslint task'",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "drizzle-orm": "^0.33",
     "nuxt": "^3.13",
+    "pg": "^8.12",
+    "pg-boss": "^10.0",
     "vue": "^3.5",
     "zod": "^3.23"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/pg": "^8",
     "@vitest/coverage-v8": "^2",
+    "drizzle-kit": "^0.24",
     "typescript": "^5.5",
     "vitest": "^2"
   }
