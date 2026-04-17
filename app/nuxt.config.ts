@@ -8,6 +8,26 @@ const APP_ORIGIN = 'https://rapidport.ro'
 
 export default defineNuxtConfig({
   ssr: true,
+  telemetry: false,
+
+  // Opt into Nuxt 4 defaults now — new project, no legacy to break.
+  // srcDir stays '.' because our source files live at the project root (pages/, server/, theme/
+  // alongside nuxt.config.ts), not in the Nuxt-4-default app/ subfolder.
+  future: {
+    compatibilityVersion: 4,
+  },
+  srcDir: '.',
+
+  debug: process.env.NODE_ENV === 'development',
+
+  app: {
+    head: {
+      htmlAttrs: {
+        lang: 'ro',
+      },
+    },
+  },
+
   css: [
     '@fontsource/inter/400.css',
     '@fontsource/inter/500.css',
@@ -30,6 +50,13 @@ export default defineNuxtConfig({
     port: 3015,
   },
   nitro: {
+    // Explicit deploy target — matches SPEC §"Architecture Overview" Docker setup.
+    preset: 'node-server',
+    // Smaller prod bundles; zero dev cost.
+    compressPublicAssets: {
+      gzip: true,
+      brotli: true,
+    },
     experimental: {
       websocket: true,
     },
@@ -55,5 +82,5 @@ export default defineNuxtConfig({
       allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1'],
     },
   },
-  compatibilityDate: '2025-01-01',
+  compatibilityDate: '2025-10-15',
 })
