@@ -22,6 +22,11 @@ export default defineNuxtConfig({
     enabled: false,
   },
   devServer: {
+    // Force IPv4 — Node 22 + macOS resolves "localhost" IPv6-first by default,
+    // binding the socket to ::1 only. rundev (and most local proxies) dial 127.0.0.1,
+    // which then fails to connect. Explicit 127.0.0.1 makes the socket IPv4-only and
+    // reachable from any local proxy or client that assumes IPv4.
+    host: '127.0.0.1',
     port: 3015,
   },
   nitro: {
