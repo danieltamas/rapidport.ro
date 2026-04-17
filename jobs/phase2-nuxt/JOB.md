@@ -53,6 +53,10 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 | 2026-04-17 | `bootstrap / bootstrap-env` | done (on main) | `33cd6ad` (squash) → `908167b` (merge to main) |
 | 2026-04-17 | `bootstrap / bootstrap-fonts` | done (on main) | `cb5fae1` (squash) → `908167b` (merge to main) |
 | 2026-04-17 | `bootstrap / bootstrap-drizzle` | done (on main) | `ae4e284` |
+| 2026-04-17 | `bootstrap / bootstrap-shadcn-setup` | done (on main) | `19e949e` |
+| 2026-04-17 | `bootstrap / bootstrap-primitives` | done (on main) | `174a452` |
+
+**Bootstrap group complete: 7/7 tasks merged to main.** Ready for Phase 0 discovery continuation + Phase 1 worker once Phase 0 gate passes.
 
 
 

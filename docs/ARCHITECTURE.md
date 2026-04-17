@@ -9,7 +9,7 @@ Current system architecture. Updated after every task that changes routes, schem
 Pre-production. Pre-launch. Three jobs in progress:
 
 - `phase0-discovery` — samples acquired; `table-inventory` + `saga-import-schema` tasks ready to run
-- `phase2-nuxt/bootstrap` group — **5/7 tasks done on main** (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`, `bootstrap-drizzle`). 2 remaining (`bootstrap-shadcn-setup`, `bootstrap-primitives`).
+- `phase2-nuxt/bootstrap` group — **7/7 tasks done on main** ✓ (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`, `bootstrap-drizzle`, `bootstrap-shadcn-setup`, `bootstrap-primitives`).
 - `phase1-worker` and rest of `phase2-nuxt` — blocked per SOP
 
 **UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
@@ -31,7 +31,19 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   ├── app.vue                        # minimal <NuxtLayout><NuxtPage /></NuxtLayout>
 │   ├── pages/
 │   │   └── index.vue                  # "Rapidport — in progress" placeholder (to be replaced by pages-landing)
-│   ├── theme/                         # design tokens — TypeScript source of truth
+│   ├── assets/css/
+│   │   └── tailwind.css               # @import "tailwindcss"; :root Rapidport tokens + shadcn alias vars + @theme inline + .light overrides + html/body dark baseline
+│   ├── components.json                # shadcn-vue config (Rapidport-flat aliases)
+│   ├── components/ui/                 # shadcn primitives — auto-imported by shadcn-nuxt
+│   │   ├── alert/                     # Alert, AlertDescription, AlertTitle
+│   │   ├── badge/                     # Badge + variants (default, secondary, destructive, outline)
+│   │   ├── button/                    # Button + variants (default, destructive, outline, secondary, ghost, link)
+│   │   ├── card/                      # Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
+│   │   ├── input/                     # Input with useVModel
+│   │   └── table/                     # Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption, TableFooter, TableEmpty
+│   ├── lib/
+│   │   └── utils.ts                   # cn() helper (clsx + tailwind-merge)
+│   ├── theme/                         # design tokens — TypeScript source of truth; mirrored by tailwind.css :root
 │   │   ├── index.ts                   # color (dark+light+accent+semantic), fontFamily, fontScale, fontWeight, space, radius, zIndex
 │   │   └── types.ts                   # inferred TypeScript types for props (ColorToken, FontScaleToken, etc.)
 │   ├── server/
@@ -102,6 +114,14 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 | `drizzle-orm` | `^0.33` | installed |
 | `pg` | `^8.12` | installed |
 | `pg-boss` | `^10.0` | installed (not yet initialized — Phase 2 `queue` tasks will wire) |
+| `tailwindcss` | `^4.2` | installed via `@tailwindcss/vite` |
+| `@tailwindcss/vite` | `^4.2` | installed |
+| `class-variance-authority` | `^0.7` | installed (shadcn peer) |
+| `clsx` | `^2.1` | installed (shadcn peer) |
+| `tailwind-merge` | `^3.5` | installed (v3 for Tailwind v4 compat) |
+| `lucide-vue-next` | `^0.400` | installed (icon set) |
+| `reka-ui` | `^2.9` | installed (Vue port of Radix — shadcn headless base) |
+| `@vueuse/core` | `^14.2` | installed (shadcn CLI promoted from transitive; used by `Input`, `TableEmpty`) |
 
 ### Dev
 
