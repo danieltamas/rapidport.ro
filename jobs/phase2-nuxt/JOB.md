@@ -44,6 +44,13 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 
 **Total:** 76 tasks.
 
+## Progress
+
+| Date | Task | Status | Merge commit |
+| --- | --- | --- | --- |
+| 2026-04-17 | `bootstrap / bootstrap-nuxt` | done (on group branch) | `0179d3b` |
+
+
 ---
 
 ## Parallelism Map
