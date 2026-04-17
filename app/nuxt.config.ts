@@ -42,16 +42,12 @@ export default defineNuxtConfig({
       },
     },
   },
-  // Vite dev-server config: accept the rapidport.ro Host header from the reverse proxy,
-  // route HMR websocket through WSS at port 443 so it works over the https tunnel.
+  // Vite dev-server config: accept the rapidport.ro Host header from the reverse proxy.
+  // HMR is left at Vite defaults — if HMR doesn't reconnect through the proxy we can opt in
+  // to wss/clientPort=443 once we know the proxy's exact WebSocket handling.
   vite: {
     server: {
       allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1'],
-      hmr: {
-        host: 'rapidport.ro',
-        protocol: 'wss',
-        clientPort: 443,
-      },
     },
   },
   compatibilityDate: '2025-01-01',
