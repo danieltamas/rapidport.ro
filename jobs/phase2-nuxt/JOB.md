@@ -49,6 +49,10 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 | Date | Task | Status | Merge commit |
 | --- | --- | --- | --- |
 | 2026-04-17 | `bootstrap / bootstrap-nuxt` | done (on group branch) | `0179d3b` |
+| 2026-04-17 | `bootstrap / bootstrap-theme` | done (on group branch) | `5955b73` |
+| 2026-04-17 | `bootstrap / bootstrap-env` | done (on group branch) | `33cd6ad` |
+| 2026-04-17 | `bootstrap / bootstrap-fonts` | done (on group branch) | `cb5fae1` |
+
 
 
 ---
