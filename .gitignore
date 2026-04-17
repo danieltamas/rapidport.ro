@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------------------
+# Rapidport — .gitignore
+# Stack: Nuxt 3 (Node 22 + npm) + Python 3.12 worker + PostgreSQL + Docker
+# ---------------------------------------------------------------------------
+
+# --- Secrets & environment ---------------------------------------------------
+.env
+.env.*
+!.env.example
+.sentryclirc
+
+# --- Node / npm / Nuxt -------------------------------------------------------
+node_modules/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp.*
+
+# Nuxt / Nitro build output & caches
+.nuxt/
+.output/
+.nitro/
+.data/
+.vite/
+dist/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# --- Python worker -----------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+
+# Virtualenvs
+.venv/
+venv/
+env/
+.Python
+
+# Test & type caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.dmypy.json
+dmypy.json
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+.nyc_output/
+coverage.xml
+*.cover
+.cache/
+.hypothesis/
+
+# Build artifacts
+build/
+*.so
+
+# --- Runtime data volumes ----------------------------------------------------
+# Per SPEC §Architecture — /data/jobs/{id}/ is the worker volume mount.
+# Keep job specs (repo-root `jobs/`) tracked; never track runtime payloads.
+data/
+/data/
+
+# --- Sample data (per SPEC §1.1 — real customer archives, never committed) --
+samples/
+worker/samples/
+
+# --- Docker ------------------------------------------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+.docker/
+
+# --- Logs --------------------------------------------------------------------
+*.log
+logs/
+
+# --- Editors / IDEs ----------------------------------------------------------
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*.swn
+*~
+.cursor/
+
+# --- OS --------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Claude Code ------------------------------------------------------------
+.claude/
+
+# --- graphify ---------------------------------------------------------------
+graphify-out/
+
+# --- Drizzle — keep generated migrations committed, ignore local snapshots --
+# (schema.ts + drizzle/NNNN_*.sql must be tracked; meta/_journal.json IS tracked
+# so migrations stay reproducible. Only local-only artifacts below.)
+app/.drizzle-kit/
+
+# --- Local scratch ----------------------------------------------------------
+tmp/
+.tmp/
+scratch/
+TODO.local.md
+
+# --- Certificates / keys (should never exist in repo, belt-and-suspenders) --
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
