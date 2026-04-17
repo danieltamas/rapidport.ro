@@ -14,7 +14,9 @@ Goal: ship the public app, admin dashboard, payment + invoicing integrations, ob
 
 **Reference:** SPEC.md §"PHASE 2 — Nuxt App, Admin, Productization"
 
-**Entry condition:** `phase1-worker` gate = passed. CLI + pg-boss consumer are production-ready; Phase 2 wires the web front-end around them.
+**Entry condition:** `phase1-worker` gate = passed for all groups EXCEPT `bootstrap`. CLI + pg-boss consumer must be production-ready before `auth-*`, `api-*`, `pages-*`, `gdpr-cleanup`, and `email-guide` groups start.
+
+**Bootstrap exception:** the `bootstrap` group (Nuxt scaffold, theme tokens, fonts, Mantine override, primitives, Zod env validation, Drizzle baseline schema) depends on NO Phase 0 or Phase 1 output. It runs immediately in parallel with Phase 0 discovery — unblocking the Drizzle schema for Phase 1's worker (no raw-SQL stopgap) and priming the foundation so later Phase 2 groups layer onto a running app.
 
 ---
 
