@@ -15,6 +15,8 @@
     "lint": "echo 'ESLint not configured yet — see bootstrap-eslint task'"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "nuxt": "^3.13",
     "vue": "^3.5",
     "zod": "^3.23"
