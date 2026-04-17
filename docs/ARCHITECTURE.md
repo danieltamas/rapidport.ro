@@ -9,7 +9,7 @@ Current system architecture. Updated after every task that changes routes, schem
 Pre-production. Pre-launch. Three jobs in progress:
 
 - `phase0-discovery` — samples acquired; `table-inventory` + `saga-import-schema` tasks ready to run
-- `phase2-nuxt/bootstrap` group — `bootstrap-nuxt` done (on group branch, not yet on main); 6 tasks remaining in the group
+- `phase2-nuxt/bootstrap` group — 4/7 tasks done on group branch (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`); 3 remaining (`bootstrap-drizzle`, `bootstrap-mantine-override`, `bootstrap-primitives`); group not yet merged to main
 - `phase1-worker` and rest of `phase2-nuxt` — blocked per SOP
 
 See `jobs/INDEX.md` for live status.
@@ -22,14 +22,24 @@ See `jobs/INDEX.md` for live status.
 rapidport.ro/app/                      # repo root (note: this is the project dir, not a Nuxt subfolder)
 │
 ├── app/                               # Nuxt 3 (SSR + Nitro), Node 22 LTS, dev port 3015
-│   ├── nuxt.config.ts                 # ssr true, ts strict, devServer.port 3015, nitro websocket experimental
+│   ├── nuxt.config.ts                 # ssr true, ts strict, devServer.port 3015, nitro websocket experimental, @fontsource css imports
 │   ├── tsconfig.json                  # extends .nuxt/tsconfig.json, strict + noUncheckedIndexedAccess + noImplicitOverride
-│   ├── package.json                   # nuxt^3.13 vue^3.5 zod^3.23 runtime; TS + vitest dev
+│   ├── package.json                   # nuxt^3.13 vue^3.5 zod^3.23 @fontsource/inter^5 @fontsource/jetbrains-mono^5 runtime
 │   ├── package-lock.json              # committed for reproducible installs
 │   ├── app.vue                        # minimal <NuxtLayout><NuxtPage /></NuxtLayout>
 │   ├── pages/
 │   │   └── index.vue                  # "Rapidport — in progress" placeholder (to be replaced by pages-landing)
+│   ├── theme/                         # design tokens — single source of truth
+│   │   ├── index.ts                   # color (dark+light+accent+semantic), fontFamily, fontScale, fontWeight, space, radius, zIndex
+│   │   └── types.ts                   # inferred TypeScript types for props (ColorToken, FontScaleToken, etc.)
+│   ├── server/
+│   │   ├── utils/
+│   │   │   └── env.ts                 # Zod EnvSchema; the only reader of process.env in the codebase
+│   │   └── plugins/
+│   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   └── .nvmrc                         # Node 22
+
+├── .env.example                       # env placeholders — real .env is gitignored
 │
 ├── worker/                            # Python 3.12 worker — NOT YET IMPLEMENTED (Phase 1)
 │
@@ -74,6 +84,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 | `nuxt` | `^3.13` | installed |
 | `vue` | `^3.5` | installed |
 | `zod` | `^3.23` | installed |
+| `@fontsource/inter` | `^5.2` | installed (weights 400/500/600) |
+| `@fontsource/jetbrains-mono` | `^5.2` | installed (weight 400) |
 
 ### Dev
 
