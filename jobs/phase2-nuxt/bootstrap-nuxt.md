@@ -35,6 +35,7 @@ This is the foundation file every Phase 2 task builds on. Getting it right means
   - `ssr: true`
   - `typescript: { strict: true, typeCheck: false }` — typecheck runs explicitly via `npm run typecheck` (which calls `nuxi typecheck`) and is enforced by CI + the `task-complete-gate.sh` hook. Setting `typeCheck: true` would pull `vue-tsc` as a peer dep and run it on every dev/build, slowing iteration. If we want in-build typecheck later, add `vue-tsc` to devDeps in a separate task.
   - `devtools: { enabled: false }` (avoid shipping devtools UI)
+  - `devServer: { port: 3015 }` — **Rapidport dev port is 3015**, not Nuxt's default 3000 (3000 collides with Dani's other local services)
   - `nitro: { experimental: { websocket: true } }` (needed for SSE progress in Phase 2 api-jobs-events-sse)
   - `compatibilityDate: '2025-01-01'` (or latest Nuxt-recommended)
 - [ ] `app/tsconfig.json`:
@@ -50,7 +51,7 @@ This is the foundation file every Phase 2 task builds on. Getting it right means
 - [ ] `cd app && npm install` completes without errors (produces `app/package-lock.json`; commit it)
 - [ ] `cd app && npx nuxi prepare` completes without errors (generates `.nuxt/`)
 - [ ] `cd app && npx nuxi typecheck` passes
-- [ ] `cd app && npm run dev` starts on port 3000, serves placeholder at `/`, no console errors (test: kill after verifying)
+- [ ] `cd app && npm run dev` starts on **port 3015**, serves placeholder at `http://localhost:3015/`, no console errors (test: kill after verifying)
 - [ ] `cd app && npm run build` produces `app/.output/` without errors
 
 ### Not in scope for this task
