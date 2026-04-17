@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import tailwindcss from '@tailwindcss/vite'
 
 // Dev is served behind rundev's reverse proxy at https://rapidport.ro — same origin as prod.
 // Nuxt itself stays plain HTTP on 3015; rundev terminates SSL.
@@ -9,6 +10,13 @@ const APP_ORIGIN = 'https://rapidport.ro'
 export default defineNuxtConfig({
   ssr: true,
   telemetry: false,
+
+  modules: ['shadcn-nuxt'],
+
+  shadcn: {
+    prefix: '',
+    componentDir: './components/ui',
+  },
 
   // Opt into Nuxt 4 defaults now — new project, no legacy to break.
   // srcDir stays '.' because our source files live at the project root (pages/, server/, theme/
@@ -29,6 +37,7 @@ export default defineNuxtConfig({
   },
 
   css: [
+    '~/assets/css/tailwind.css',
     '@fontsource/inter/400.css',
     '@fontsource/inter/500.css',
     '@fontsource/inter/600.css',
@@ -78,6 +87,7 @@ export default defineNuxtConfig({
   // HMR is left at Vite defaults — if HMR doesn't reconnect through the proxy we can opt in
   // to wss/clientPort=443 once we know the proxy's exact WebSocket handling.
   vite: {
+    plugins: [tailwindcss()],
     server: {
       allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1'],
     },

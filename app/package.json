@@ -21,10 +21,17 @@
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@tailwindcss/vite": "^4.2.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.33",
+    "lucide-vue-next": "^0.400.0",
     "nuxt": "^3.13",
     "pg": "^8.12",
     "pg-boss": "^10.0",
+    "reka-ui": "^2.9.6",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
     "vue": "^3.5",
     "zod": "^3.23"
   },
@@ -33,6 +40,7 @@
     "@types/pg": "^8",
     "@vitest/coverage-v8": "^2",
     "drizzle-kit": "^0.24",
+    "shadcn-nuxt": "^2.6.2",
     "typescript": "^5.5",
     "vitest": "^2"
   }
