@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { Button } from '~/components/ui/button'
-
-function goTo(path: string) {
-  return navigateTo(path)
-}
+import { buttonVariants } from '~/components/ui/button'
+import { cn } from '~/lib/utils'
 </script>
 
 <template>
@@ -22,19 +19,18 @@ function goTo(path: string) {
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          class="hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium"
-          @click="goTo('/auth/login')"
+        <NuxtLink
+          to="/auth/login"
+          :class="cn(buttonVariants({ variant: 'ghost' }), 'hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium')"
         >
           Autentificare
-        </Button>
-        <Button
-          class="rounded-full h-10 px-5 text-sm font-medium"
-          @click="goTo('/upload')"
+        </NuxtLink>
+        <NuxtLink
+          to="/upload"
+          :class="cn(buttonVariants({ variant: 'default' }), 'rounded-full h-10 px-5 text-sm font-medium')"
         >
           Începe portarea
-        </Button>
+        </NuxtLink>
       </div>
     </div>
   </nav>
