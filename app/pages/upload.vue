@@ -71,7 +71,10 @@ function fmtSize(n: number) {
               <div>
                 <div class="text-lg font-semibold">Trageți arhiva aici</div>
                 <div class="text-sm text-muted-foreground mt-1">
-                  sau apăsați pentru a selecta un fișier · max. 500 MB
+                  sau apăsați pentru a selecta un fișier
+                </div>
+                <div class="text-xs text-muted-foreground mt-2">
+                  max. 500 MB arhivă comprimată · acoperă baze de până la ~5 GB necomprimate
                 </div>
               </div>
             </div>

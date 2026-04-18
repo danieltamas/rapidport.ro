@@ -85,7 +85,6 @@ const plans = [
       '1 sincronizare delta inclusă',
       'Suport pe email',
     ],
-    cta: 'Alege Mic',
     primary: false,
     recommended: false,
   },
@@ -101,24 +100,22 @@ const plans = [
       'Raport de audit al conversiei',
       'Suport pe email, răspuns în 24h',
     ],
-    cta: 'Începe portarea',
     primary: true,
     recommended: true,
   },
   {
-    name: 'Heavy',
+    name: 'Mare',
     price: '799',
     priceHint: 'de la',
     priceCeiling: 'plafonat la 1.499',
-    tagline: 'Peste 25.000 înregistrări · pentru baze mari cu ani de date.',
+    tagline: 'Peste 25.000 înregistrări · pentru baze mari cu istoric extins.',
     features: [
       'Tot ce include pachetul Standard',
-      'Baze de date peste 5 GB, orice dimensiune',
+      'Arhive până la 500 MB (echivalent ~5 GB necomprimat)',
       'Sincronizări delta nelimitate timp de 30 de zile',
       'Ajustări manuale de mapare incluse',
       'Suport telefonic prioritar',
     ],
-    cta: 'Alege Heavy',
     primary: false,
     recommended: false,
   },
@@ -507,7 +504,7 @@ const faqs = [
               </div>
               <p class="mt-3 text-sm text-muted-foreground leading-relaxed">{{ plan.tagline }}</p>
             </div>
-            <ul class="space-y-3 mb-8 flex-1">
+            <ul class="space-y-3 flex-1">
               <li
                 v-for="feature in plan.features"
                 :key="feature"
@@ -519,18 +516,32 @@ const faqs = [
                 <span>{{ feature }}</span>
               </li>
             </ul>
-            <Button
-              :variant="plan.primary ? 'default' : 'outline'"
-              class="rounded-full h-12 w-full text-base font-medium"
-              as-child
-            >
-              <NuxtLink to="/upload">{{ plan.cta }}</NuxtLink>
-            </Button>
           </div>
         </div>
 
-        <p class="mt-8 text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          <span class="text-foreground font-medium">Prețurile afișate sunt fără TVA. Prețul exact se afișează după analiza bazei de date, înainte de plată.</span>
+        <!-- Single CTA — the tier is determined by the analysis, not by the user -->
+        <div class="mt-10 rounded-2xl border border-primary/30 bg-primary/5 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div class="max-w-xl">
+            <div class="text-base md:text-lg font-semibold mb-1">
+              Nu alegeți pachetul. Îl afișăm noi, după ce analizăm arhiva.
+            </div>
+            <div class="text-sm text-muted-foreground leading-relaxed">
+              Încărcați arhiva — analiza este gratuită. Vă spunem exact la ce pachet se încadrează și cât costă, înainte să plătiți.
+            </div>
+          </div>
+          <Button
+            class="rounded-full h-12 px-7 text-base font-medium shadow-sm shrink-0"
+            as-child
+          >
+            <NuxtLink to="/upload">
+              Încarcă arhiva
+              <ArrowRight class="size-4 ml-1" :stroke-width="2" />
+            </NuxtLink>
+          </Button>
+        </div>
+
+        <p class="mt-6 text-sm text-muted-foreground max-w-2xl leading-relaxed">
+          <span class="text-foreground font-medium">Prețurile afișate sunt fără TVA.</span>
           Factură cu TVA 19% emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON + TVA per rulare.
         </p>
       </div>
