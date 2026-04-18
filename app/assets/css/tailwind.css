@@ -133,6 +133,12 @@
 }
 
 /* Global baseline — inherits from :root, so light by default */
+html {
+  scroll-behavior: smooth;
+  /* Sticky-nav-aware anchor scrolling: offset by nav height (~4rem) */
+  scroll-padding-top: 5rem;
+}
+
 html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);

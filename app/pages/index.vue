@@ -214,12 +214,14 @@ const faqs = [
           </p>
 
           <div class="mt-10 flex flex-wrap gap-3">
-            <Button class="rounded-full h-12 px-7 text-base font-medium shadow-sm">
-              Începe portarea
-              <ArrowRight class="size-4 ml-1" :stroke-width="2" />
+            <Button class="rounded-full h-12 px-7 text-base font-medium shadow-sm" as-child>
+              <NuxtLink to="/upload">
+                Începe portarea
+                <ArrowRight class="size-4 ml-1" :stroke-width="2" />
+              </NuxtLink>
             </Button>
-            <Button variant="outline" class="rounded-full h-12 px-7 text-base font-medium bg-background">
-              Vezi cum funcționează
+            <Button variant="outline" class="rounded-full h-12 px-7 text-base font-medium bg-background" as-child>
+              <a href="#cum">Vezi cum funcționează</a>
             </Button>
           </div>
 
@@ -315,10 +317,10 @@ const faqs = [
               <!-- footer action -->
               <div class="flex items-center justify-between px-5 py-3.5 border-t border-border bg-background/40 text-xs">
                 <span class="text-muted-foreground">raport.pdf · 3,2 MB</span>
-                <a href="#" class="text-primary font-medium hover:underline flex items-center gap-1">
+                <span class="text-primary font-medium flex items-center gap-1">
                   Descarcă pachetul SAGA
                   <ArrowRight class="size-3" :stroke-width="2.5" />
-                </a>
+                </span>
               </div>
             </div>
           </div>
@@ -475,7 +477,7 @@ const faqs = [
             Plată unică. Fără abonament. Factură cu TVA.
           </h2>
           <p class="mt-4 text-base text-muted-foreground max-w-2xl">
-            Plătiți pentru portare, nu pentru timpul pe care l-am pierde reintroducând date. Factură emisă cu SmartBill și trimisă automat prin eFactura către ANAF.
+            Prețurile afișate sunt fără TVA. Factură cu TVA 19% emisă automat prin SmartBill și transmisă prin eFactura către ANAF.
           </p>
         </div>
 
@@ -498,9 +500,10 @@ const faqs = [
                 <span v-if="plan.priceHint" class="text-sm text-muted-foreground">{{ plan.priceHint }}</span>
                 <span class="text-5xl font-bold tracking-[-0.03em] tabular-nums">{{ plan.price }}</span>
                 <span class="text-sm text-muted-foreground">RON</span>
+                <span class="text-xs text-muted-foreground font-medium">+ TVA</span>
               </div>
               <div v-if="plan.priceCeiling" class="mt-1 text-xs text-muted-foreground">
-                {{ plan.priceCeiling }} RON
+                {{ plan.priceCeiling }} RON + TVA
               </div>
               <p class="mt-3 text-sm text-muted-foreground leading-relaxed">{{ plan.tagline }}</p>
             </div>
@@ -519,15 +522,16 @@ const faqs = [
             <Button
               :variant="plan.primary ? 'default' : 'outline'"
               class="rounded-full h-12 w-full text-base font-medium"
+              as-child
             >
-              {{ plan.cta }}
+              <NuxtLink to="/upload">{{ plan.cta }}</NuxtLink>
             </Button>
           </div>
         </div>
 
         <p class="mt-8 text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          <span class="text-foreground font-medium">Prețul exact se afișează după analiza bazei de date, înainte de plată.</span>
-          Factură cu TVA emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON per rulare.
+          <span class="text-foreground font-medium">Prețurile afișate sunt fără TVA. Prețul exact se afișează după analiza bazei de date, înainte de plată.</span>
+          Factură cu TVA 19% emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON + TVA per rulare.
         </p>
       </div>
     </section>
