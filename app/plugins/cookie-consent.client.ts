@@ -2,28 +2,18 @@ import * as CookieConsent from 'vanilla-cookieconsent'
 import 'vanilla-cookieconsent/dist/cookieconsent.css'
 
 // Rapidport cookie consent — GDPR compliant, Romanian-first, minimal scope.
-// Only one strict-necessary cookie in v1 (CSRF token); no analytics/tracking/ads.
-// Styled to match the site's light-default theme + signature red accent.
+// Only strict-necessary cookies in v1 (csrf-token, job_access_*); no analytics/tracking/ads.
+// Themed light-default + signature red accent via tailwind.css override.
 
 export default defineNuxtPlugin(() => {
   CookieConsent.run({
     guiOptions: {
-      consentModal: {
-        layout: 'box inline',
-        position: 'bottom right',
-      },
-      preferencesModal: {
-        layout: 'box',
-      },
+      consentModal: { layout: 'box inline', position: 'bottom right' },
+      preferencesModal: { layout: 'box' },
     },
-
     categories: {
-      necessary: {
-        enabled: true,
-        readOnly: true,
-      },
+      necessary: { enabled: true, readOnly: true },
     },
-
     language: {
       default: 'ro',
       translations: {
@@ -31,7 +21,7 @@ export default defineNuxtPlugin(() => {
           consentModal: {
             title: 'Cookie-uri',
             description:
-              'Folosim un singur cookie strict necesar (CSRF) pentru protecția formularelor. Nu folosim cookie-uri de tracking, analiză sau publicitate.',
+              'Folosim doar cookie-uri strict necesare (CSRF + token de acces la portarea activă). Nu folosim tracking, analiză sau publicitate.',
             acceptAllBtn: 'Am înțeles',
             showPreferencesBtn: 'Detalii',
             footer:
@@ -67,7 +57,7 @@ export default defineNuxtPlugin(() => {
                       name: 'job_access_*',
                       domain: 'rapidport.ro',
                       description:
-                        'Token de acces pentru o portare activă — permite accesul la raport și descărcare fără cont.',
+                        'Token de acces la o portare activă — permite accesul la raport și descărcare fără cont.',
                       expiration: '30 zile',
                     },
                   ],
@@ -76,7 +66,7 @@ export default defineNuxtPlugin(() => {
               {
                 title: 'Mai multe informații',
                 description:
-                  'Nu folosim cookie-uri de tracking, analiză sau publicitate. Pentru întrebări, scrieți la <a href="mailto:support@rapidport.ro">support@rapidport.ro</a>.',
+                  'Nu folosim cookie-uri de tracking, analiză sau publicitate. Întrebări: <a href="mailto:support@rapidport.ro">support@rapidport.ro</a>.',
               },
             ],
           },
@@ -84,4 +74,11 @@ export default defineNuxtPlugin(() => {
       },
     },
   })
+
+  // Expose for use by components (e.g., footer "Preferințe cookie-uri" button)
+  return {
+    provide: {
+      cookieConsent: CookieConsent,
+    },
+  }
 })

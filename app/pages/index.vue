@@ -6,15 +6,33 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '~/components/ui/accordion'
-import { ArrowRight, Check, Upload, Eye, Download, Mail, Database, CircleCheck, TrendingUp } from 'lucide-vue-next'
+import { ArrowRight, Check, Upload, Eye, Download, Mail, Database, CircleCheck, TrendingUp, Clock, AlertTriangle, Coins, ArrowLeftRight } from 'lucide-vue-next'
 
 useHead({
-  title: 'Rapidport — portare rapidă WinMentor → SAGA în 15 minute',
+  title: 'Rapidport — portare rapidă între software-uri contabile',
   meta: [
-    { name: 'description', content: 'Portare completă a datelor contabile din WinMentor în SAGA. Verificare pas cu pas, raport detaliat, sincronizări ulterioare incluse. Pentru contabili care își respectă timpul.' },
+    { name: 'description', content: 'Portare între WinMentor și SAGA, în orice direcție. În 15 minute, cu verificare pas cu pas și raport detaliat. Pentru contabili care își respectă timpul.' },
   ],
   htmlAttrs: { lang: 'ro' },
 })
+
+const pains = [
+  {
+    icon: Clock,
+    title: '40 de ore la 1.000 parteneri',
+    body: 'Reintroducerea manuală a datelor dintr-un software în altul fură săptămâni din viață. Și când termini, mai vine și balanța de verificare.',
+  },
+  {
+    icon: AlertTriangle,
+    title: 'Erori care ajung la ANAF',
+    body: 'O singură cifră tastată greșit la preluare se multiplică în fiecare raport. Inspecția ANAF descoperă diferențe. Nimeni nu vrea să explice de ce.',
+  },
+  {
+    icon: Coins,
+    title: 'Licențe duble, luni la rând',
+    body: 'Plătiți software-ul vechi și pe cel nou în paralel pentru că tranziția „durează un pic". Costuri care se adună la câteva mii de lei.',
+  },
+]
 
 const stats = [
   { value: '498', caption: 'tabele WinMentor analizate per portare' },
@@ -56,32 +74,53 @@ const logos = [
 
 const plans = [
   {
-    name: 'Standard',
-    price: '499',
-    tagline: 'Pentru majoritatea cabinetelor contabile.',
+    name: 'Mic',
+    price: '299',
+    priceHint: '',
+    tagline: 'Până la 5.000 înregistrări · pentru portări rapide, baze mici.',
     features: [
-      'Portare completă WinMentor → SAGA',
+      'Portare completă WinMentor ⇄ SAGA',
       'Mapare asistată de AI pentru peste 800 de câmpuri',
       'Raport detaliat al conversiei (JSON + PDF)',
+      '1 sincronizare delta inclusă',
+      'Suport pe email',
+    ],
+    cta: 'Alege Mic',
+    primary: false,
+    recommended: false,
+  },
+  {
+    name: 'Standard',
+    price: '499',
+    priceHint: '',
+    tagline: 'Până la 25.000 înregistrări · pentru portări complete cu istoric.',
+    features: [
+      'Tot ce include pachetul Mic',
+      'Istoric contabil complet (mai mulți ani)',
       '3 sincronizări delta în primele 30 de zile',
+      'Raport de audit al conversiei',
       'Suport pe email, răspuns în 24h',
     ],
     cta: 'Începe portarea',
     primary: true,
+    recommended: true,
   },
   {
     name: 'Heavy',
     price: '799',
-    tagline: 'Pentru baze de date mari sau portări complexe.',
+    priceHint: 'de la',
+    priceCeiling: 'plafonat la 1.499',
+    tagline: 'Peste 25.000 înregistrări · pentru baze mari cu ani de date.',
     features: [
       'Tot ce include pachetul Standard',
-      'Baze de date peste 5 GB',
+      'Baze de date peste 5 GB, orice dimensiune',
       'Sincronizări delta nelimitate timp de 30 de zile',
-      'Suport telefonic prioritar',
       'Ajustări manuale de mapare incluse',
+      'Suport telefonic prioritar',
     ],
     cta: 'Alege Heavy',
     primary: false,
+    recommended: false,
   },
 ]
 
@@ -161,7 +200,7 @@ const faqs = [
         <div class="md:col-span-6">
           <div class="flex items-center gap-2 text-xs text-muted-foreground mb-8">
             <span class="inline-block size-1.5 rounded-full bg-primary" />
-            <span>Beta privat · primele portări WinMentor → SAGA</span>
+            <span>Beta privat · portare WinMentor ⇄ SAGA, în ambele direcții</span>
           </div>
 
           <h1 class="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold tracking-[-0.03em] leading-[1.05]">
@@ -170,7 +209,8 @@ const faqs = [
           </h1>
 
           <p class="mt-8 text-lg text-muted-foreground leading-relaxed max-w-xl">
-            Portare rapidă între software-uri contabile. Începem cu <span class="text-foreground font-medium">WinMentor → SAGA</span>: 15 minute, verificare pas cu pas, raport detaliat al conversiei. Alte direcții urmează.
+            Portare rapidă între software-uri contabile, în orice direcție. Astăzi:
+            <span class="text-foreground font-medium inline-flex items-center gap-1">WinMentor <ArrowLeftRight class="size-4 inline" :stroke-width="2" /> SAGA</span>, în 15 minute, cu verificare pas cu pas și raport detaliat. Urmează Ciel, Oblio, SmartBill și alte direcții.
           </p>
 
           <div class="mt-10 flex flex-wrap gap-3">
@@ -307,6 +347,51 @@ const faqs = [
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- PAIN — why accountants should care                                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="border-b border-border">
+      <div class="mx-auto max-w-[1280px] px-6 py-20 md:py-24">
+        <div class="max-w-3xl mb-14">
+          <div class="text-sm font-medium text-primary mb-3">De ce contează</div>
+          <h2 class="text-3xl md:text-5xl font-bold tracking-[-0.025em] leading-[1.05]">
+            Câte săptămâni v-a furat<br class="hidden md:inline"> ultima schimbare de software?
+          </h2>
+          <p class="mt-5 text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+            Tranzițiile între software-uri contabile sunt tocmai acel tip de proiect care se tot amână. Motiv: efortul manual e disproporționat față de rezultat. Rapidport rezolvă exact asta.
+          </p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <div
+            v-for="pain in pains"
+            :key="pain.title"
+            class="rounded-2xl border border-border bg-card p-8"
+          >
+            <div class="size-11 rounded-xl bg-destructive/10 text-destructive grid place-items-center mb-6">
+              <component :is="pain.icon" class="size-5" :stroke-width="2" />
+            </div>
+            <h3 class="text-xl font-bold mb-3 tracking-tight">{{ pain.title }}</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">{{ pain.body }}</p>
+          </div>
+        </div>
+
+        <div class="mt-12 rounded-2xl border border-primary/30 bg-primary/5 p-6 md:p-8 flex items-start gap-4">
+          <div class="size-10 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
+            <CircleCheck class="size-5" :stroke-width="2" />
+          </div>
+          <div>
+            <div class="text-base md:text-lg font-semibold mb-1">
+              Rapidport face asta în 15 minute, cu raport de audit.
+            </div>
+            <div class="text-sm text-muted-foreground leading-relaxed">
+              Încărcați arhiva, validăm structura gratuit, vedeți raportul, abia apoi plătiți. Dacă importul în SAGA eșuează și nu putem remedia, refund integral.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- STATS — proportional sans, light                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="border-b border-border">
@@ -394,26 +479,30 @@ const faqs = [
           </p>
         </div>
 
-        <div class="grid md:grid-cols-2 gap-6">
+        <div class="grid md:grid-cols-3 gap-6">
           <div
             v-for="plan in plans"
             :key="plan.name"
-            class="rounded-2xl border p-8 flex flex-col"
-            :class="plan.primary ? 'border-primary/40 bg-card shadow-lg shadow-primary/5 relative' : 'border-border bg-card'"
+            class="rounded-2xl border p-8 flex flex-col relative"
+            :class="plan.primary ? 'border-primary/50 bg-card shadow-xl shadow-primary/10' : 'border-border bg-card'"
           >
             <div
-              v-if="plan.primary"
-              class="absolute -top-3 left-8 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full"
+              v-if="plan.recommended"
+              class="absolute -top-3 left-8 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full shadow-sm"
             >
-              Recomandat
+              ⭐ Recomandat
             </div>
             <div class="mb-6">
-              <div class="text-sm font-semibold text-muted-foreground mb-1">{{ plan.name }}</div>
+              <div class="text-sm font-semibold text-muted-foreground mb-2">{{ plan.name }}</div>
               <div class="flex items-baseline gap-2">
+                <span v-if="plan.priceHint" class="text-sm text-muted-foreground">{{ plan.priceHint }}</span>
                 <span class="text-5xl font-bold tracking-[-0.03em] tabular-nums">{{ plan.price }}</span>
                 <span class="text-sm text-muted-foreground">RON</span>
               </div>
-              <p class="mt-3 text-sm text-muted-foreground">{{ plan.tagline }}</p>
+              <div v-if="plan.priceCeiling" class="mt-1 text-xs text-muted-foreground">
+                {{ plan.priceCeiling }} RON
+              </div>
+              <p class="mt-3 text-sm text-muted-foreground leading-relaxed">{{ plan.tagline }}</p>
             </div>
             <ul class="space-y-3 mb-8 flex-1">
               <li
@@ -436,8 +525,9 @@ const faqs = [
           </div>
         </div>
 
-        <p class="mt-8 text-sm text-muted-foreground max-w-2xl">
-          Sincronizare delta suplimentară, după epuizarea celor incluse: 99 RON per rulare. Include TVA 19%.
+        <p class="mt-8 text-sm text-muted-foreground max-w-2xl leading-relaxed">
+          <span class="text-foreground font-medium">Prețul exact se afișează după analiza bazei de date, înainte de plată.</span>
+          Factură cu TVA emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON per rulare.
         </p>
       </div>
     </section>
@@ -490,13 +580,12 @@ const faqs = [
         <p class="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
           Fără cont, fără abonament. Încărcați arhiva, validăm structura, vedeți raportul — abia apoi plătiți.
         </p>
-        <div class="mt-10 flex flex-wrap justify-center gap-3">
-          <Button class="rounded-full h-14 px-8 text-base font-medium">
-            Începe portarea
-            <ArrowRight class="size-4 ml-1" :stroke-width="2" />
-          </Button>
-          <Button variant="outline" class="rounded-full h-14 px-8 text-base font-medium bg-background">
-            Programează o demonstrație
+        <div class="mt-10 flex justify-center">
+          <Button class="rounded-full h-14 px-8 text-base font-medium" as-child>
+            <NuxtLink to="/upload">
+              Începe portarea
+              <ArrowRight class="size-4 ml-1" :stroke-width="2" />
+            </NuxtLink>
           </Button>
         </div>
       </div>

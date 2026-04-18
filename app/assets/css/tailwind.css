@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 /*
  * Rapidport design tokens — MinIO-inspired, LIGHT-by-default, dark opt-in.
