@@ -1,0 +1,15 @@
+DejaVu Fonts — License
+
+The DejaVu fonts bundled alongside this file (DejaVuSans.ttf,
+DejaVuSans-Bold.ttf) are derived from the Bitstream Vera Fonts and
+include additions and modifications placed in the public domain by
+the DejaVu Fonts project.
+
+Full license text: https://dejavu-fonts.github.io/License.html
+
+Permission is granted, free of charge, to any person obtaining a copy
+of the fonts to use, copy, merge, publish, distribute, and/or modify
+them, subject to the conditions in the Bitstream Vera Fonts Copyright.
+
+Rapidport uses these fonts to render Romanian diacritics (ă â î ș ț
+Ă Â Î Ș Ț) in generated PDF conversion reports.

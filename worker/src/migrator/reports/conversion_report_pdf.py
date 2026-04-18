@@ -73,15 +73,33 @@ from migrator.utils.logger import get_logger
 log = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Font configuration
+# Font configuration — DejaVu Sans for Romanian diacritic support
 # ---------------------------------------------------------------------------
-# Switch to "DejaVuSans" / "DejaVuSans-Bold" once fonts are shipped.
-# See module docstring for registration code.
-BODY_FONT: str = "Helvetica"
-BOLD_FONT: str = "Helvetica-Bold"
+# DejaVuSans.ttf + DejaVuSans-Bold.ttf ship alongside this module under
+# reports/fonts/ (see LICENSE.txt). Falls back to Helvetica on registration
+# failure (CI without package-data, etc.) with a one-time warning.
+
+from importlib.resources import files as _pkg_files  # noqa: E402
+from reportlab.pdfbase import pdfmetrics as _pdfmetrics  # noqa: E402
+from reportlab.pdfbase.ttfonts import TTFont as _TTFont  # noqa: E402
+
 MONO_FONT: str = "Courier"
 
-_FONT_MISSING: bool = True  # Set to False after successful TTF registration
+try:
+    _font_dir = _pkg_files("migrator.reports").joinpath("fonts")
+    _pdfmetrics.registerFont(_TTFont("DejaVuSans", str(_font_dir / "DejaVuSans.ttf")))
+    _pdfmetrics.registerFont(_TTFont("DejaVuSans-Bold", str(_font_dir / "DejaVuSans-Bold.ttf")))
+    BODY_FONT: str = "DejaVuSans"
+    BOLD_FONT: str = "DejaVuSans-Bold"
+    _FONT_MISSING: bool = False
+except Exception as _font_err:
+    log.warning(
+        "report_pdf_font_register_failed",
+        error_type=type(_font_err).__name__,
+    )
+    BODY_FONT = "Helvetica"
+    BOLD_FONT = "Helvetica-Bold"
+    _FONT_MISSING = True
 
 
 # ---------------------------------------------------------------------------
