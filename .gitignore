@@ -133,3 +133,6 @@ TODO.local.md
 *.crt
 docs/saga-fdb-schema.sql
 samples/saga/CONT_BAZA.readonly.FDB
+
+# --- Docker secrets (never commit passwords/keys) ---------------------------
+.secrets/

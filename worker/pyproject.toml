@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "migrator"
+version = "0.1.0"
+description = "WinMentor → SAGA migration worker"
+requires-python = ">=3.12"
+dependencies = [
+  "pypxlib>=0.5",          # Paradox .DB/.MB parsing
+  "pydantic>=2.7",         # canonical schema + queue payloads
+  "anthropic>=0.30",       # Haiku mapping
+  "tenacity>=9.0",         # retry with backoff
+  "structlog>=24.0",       # JSON logging
+  "asyncpg>=0.29",         # Postgres from worker
+  # pg-boss has no maintained Python client (verified bootstrap-db-minimal 2026-04-18).
+  # consumer-pgboss task implements direct asyncpg polling of pgboss.job tables.
+  # See worker/PG_BOSS_NOTES.md for the approach.
+  "reportlab>=4.0",        # report.pdf Romanian font embedding
+  "dbfread>=2.0",          # read DBF for test fixtures
+  "pydbf>=0.1",            # write DBF for SAGA output
+  "py7zr>=0.21",           # 7z archive extraction
+  "rarfile>=4.2",          # rar archive extraction (requires system `unrar` binary)
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "testcontainers[postgres]>=4.0",
+]
+
+[project.scripts]
+migrator = "migrator.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/migrator"]
+
+# ---------------------------------------------------------------------------
+# Ruff — linter + formatter
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["migrator"]
+
+# ---------------------------------------------------------------------------
+# Mypy — strict type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
