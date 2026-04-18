@@ -200,14 +200,14 @@ const faqs = [
             <span>Beta privat · portare WinMentor ⇄ SAGA, în ambele direcții</span>
           </div>
 
-          <h1 class="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold tracking-[-0.03em] leading-[1.05]">
-            Schimbați software-ul contabil.<br>
-            <span class="bg-gradient-to-r from-primary via-primary to-orange-500 bg-clip-text text-transparent">Păstrați datele.</span>
+          <h1 class="text-[clamp(2.5rem,5.5vw,4.5rem)] font-bold tracking-[-0.03em] leading-[1.05] text-black">
+            Toate cifrele. Orice software.<br>
+            <span class="bg-gradient-to-r from-primary via-primary to-orange-500 bg-clip-text text-transparent">În 15 minute.</span>
           </h1>
 
           <p class="mt-8 text-lg text-muted-foreground leading-relaxed max-w-xl">
-            Portare rapidă între software-uri contabile, în orice direcție. Astăzi:
-            <span class="text-foreground font-medium inline-flex items-center gap-1">WinMentor <ArrowLeftRight class="size-4 inline" :stroke-width="2" /> SAGA</span>, în 15 minute, cu verificare pas cu pas și raport detaliat.
+            Portare contabilă completă, cu verificare pas cu pas și raport detaliat. Astăzi pentru
+            <span class="text-foreground font-medium inline-flex items-center gap-1">WinMentor <ArrowLeftRight class="size-4 inline" :stroke-width="2" /> SAGA</span>, în ambele direcții. Zero reintroducere manuală.
           </p>
 
           <div class="mt-10 flex flex-wrap gap-3">
