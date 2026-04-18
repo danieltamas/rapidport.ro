@@ -197,3 +197,21 @@ select:not(:disabled) {
   --cc-btn-border-radius: 9999px;
 }
 
+/* Remove black border on primary (red) buttons — the CSS var doesn't fully
+   kill the default button border, so force it to none explicitly. */
+#cc-main .cm__btn--primary,
+#cc-main .pm__btn--primary,
+#cc-main button[data-role="accept-all"],
+#cc-main button[data-role="save"] {
+  border: none !important;
+  outline: none !important;
+}
+
+/* "Mai multe informații" + all info blocks: enforce reasonable border-radius
+   (the library's default is a pill-ish ~9999px on some section variants). */
+#cc-main .pm__section,
+#cc-main .pm__section-desc-wrapper,
+#cc-main .pm__section--expandable {
+  border-radius: 0.75rem !important;
+}
+
