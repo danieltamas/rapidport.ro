@@ -6,6 +6,29 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ---
 
+## 2026-04-18
+
+### `phase0-discovery / discovery / saga-import-schema` — committed to main
+
+**Commits:** `64cfa0c` (schema docs), `5d6faa1` (DONE report)
+
+**Summary:** Reverse-engineered SAGA C 3.0 import file formats from a live Firebird 3.x production database (`samples/saga/CONT_BAZA.FDB`, ODS 12, 195 tables, WIN1252). Prior worker had already extracted `docs/saga-fdb-schema.sql` (40,371 lines DDL) via `jacobalberty/firebird:3.0` Docker + isql; ODS version confirmed from file header bytes (offset 0x12 = 0x0C = 12). FDB columns cross-referenced against SAGA C 3.0 official manual + askit.ro + forum posts.
+
+**Deliverables:**
+- `docs/saga-schemas.md` — 689 lines; all 7 entities documented (Terți/Clienti, Terți/Furnizori, Articole, Articole Contabile, Intrări, Ieșiri, Încasări, Plăți) with FDB column specs, import file formats, field mappings, gotchas, and XML/DBF samples
+- `docs/saga-rejections.md` — stub with 8 known pre-validation risk flags for Phase 1 generators
+- `.gitignore` — already had correct entries (`docs/saga-fdb-schema.sql`, `samples/saga/CONT_BAZA.readonly.FDB`) from prior attempt; verified, not changed
+
+**Key findings:** No dedicated INCASARI/PLATI tables — payments stored in REGISTRU + NOTE_FACTURI + OP. Invoices routed by SAGA based on XML tags (not filename): `<FurnizorCIF>` matching own company CIF → Iesiri, otherwise → Intrari. Date format in XML is `dd.mm.yyyy`. DBF encoding is WIN1252. PKs are Firebird generator-assigned — import files must not provide them.
+
+**Phase C deferred:** SAGA C 3.0 is Windows-only, unavailable on dev machine. Live import validation deferred to Phase 1 `generators-*` tasks.
+
+**Reports:** `jobs/phase0-discovery/DONE-saga-import-schema.md`
+
+**Open questions for Dani:** DBF vs XML for Terți/Articole in Phase 1; deduplication vs overwrite behavior; EUR/USD invoice support in v1; chart of accounts pre-existence requirement.
+
+---
+
 ## 2026-04-17
 
 ### `phase2-nuxt / bootstrap / bootstrap-primitives` — merged to main — **bootstrap group complete (7/7)**

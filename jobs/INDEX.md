@@ -8,8 +8,8 @@ Master index of all jobs for the rapidport.ro project. See `SPEC.md` for the pro
 
 | Job | Phase | Status | Duration | Gate | Job File |
 | --- | --- | --- | --- | --- | --- |
-| `phase0-discovery` | Phase 0 — Discovery & Validation | in_progress (samples acquired) | 2–3 days | SPEC §0.5 | [JOB.md](./phase0-discovery/JOB.md) |
-| `phase1-worker` | Phase 1 — Core Pipeline (Python worker) | blocked on phase0 | 5–7 days | SPEC §1.10 | [JOB.md](./phase1-worker/JOB.md) |
+| `phase0-discovery` | Phase 0 — Discovery & Validation | done — group branch pending merge to main pending Dani's final review | 2–3 days | SPEC §0.5 | [JOB.md](./phase0-discovery/JOB.md) |
+| `phase1-worker` | Phase 1 — Core Pipeline (Python worker) | pending (SAGA Phase C validation — live import against installed SAGA — carried forward to Phase 1 `generators-*` tasks as a sub-criterion per Phase 0 gate partial-pass) | 5–7 days | SPEC §1.10 | [JOB.md](./phase1-worker/JOB.md) |
 | `phase2-nuxt` | Phase 2 — Nuxt App, Admin, Productization | `bootstrap` group: **7/7 done on main** ✓. Other groups (security-baseline, schema, auth-*, api-*, pages-*, etc.) blocked on phase1 gate. | 5–7 days | SPEC §2.8 | [JOB.md](./phase2-nuxt/JOB.md) |
 
 ## Archived
