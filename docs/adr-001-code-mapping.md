@@ -142,12 +142,9 @@ For these partners:
 
 SAGA `ARTICOLE` deduplicates on `COD` (`docs/saga-schemas.md` §2b: "Articles are deduplicated on `COD`. If a matching `COD` exists, SAGA skips the record."). Under Option A, we leave `COD` blank and let SAGA assign codes. If `COD` is blank in the import file, SAGA will assign a new code regardless of `DENUMIRE` — there is no name-based deduplication for articles. This is correct for v1: fresh target means no collision concern.
 
-**Sub-question for Dani (A1 vs A2):** WinMentor's `NART.DB` carries both `Cod` (internal integer, WinMentor-assigned) and `CodExtern` (external code, typically a barcode or supplier SKU). Two sub-options under fresh target:
+**Resolution (A1 vs A2 — decided 2026-04-18):** v1 implements **A2** as the default: populate SAGA `ARTICOLE.COD` with WinMentor's `CodExtern` when non-empty, fall back to blank otherwise. The value fits within `VARCHAR(16)` (WinMentor `CodExtern` is a short barcode or supplier SKU). The WinMentor internal integer `Cod` is never written to SAGA `ARTICOLE.COD` — it is only preserved in `articles.csv` as the reconciliation key.
 
-- **A1 (full drop):** Leave SAGA `COD` blank. SAGA auto-assigns. Both the WinMentor internal `Cod` and the `CodExtern` are only preserved in `articles.csv` for reference.
-- **A2 (preserve CodExtern):** Populate SAGA `ARTICOLE.COD` with WinMentor's `CodExtern`, if non-empty. This gives barcode/SKU continuity in SAGA for articles that already have a real external code. Only fall back to blank if `CodExtern` is empty. This fits within `VARCHAR(16)`.
-
-**A2 is likely preferable if `CodExtern` represents the accountant's actual product codes** (barcodes, supplier SKUs). This question cannot be resolved without Dani confirming the semantics of `CodExtern` in the donor sample. Phase 1 should implement A1 (safe default) with an option to switch to A2 per mapping profile.
+This is not a hardcoded developer decision — it surfaces as a per-job UI toggle in the mapping validation phase. The client (accountant) confirms or overrides the mapping before conversion runs. Phase 1 must expose this as a per-job setting in the mapping profile and plumb it through the SAGA article generator. Default = A2 (populate from `CodExtern`); override = A1 (leave blank, SAGA auto-assigns).
 
 ### Duplicate CIFs in WinMentor
 
@@ -186,7 +183,7 @@ The canonical schema (the internal Python dataclass / Pydantic model that sits b
 
 - `CanonicalPartner.source_id: int` — WinMentor `NPART.Cod` (integer)
 - `CanonicalArticle.source_id: int` — WinMentor `NART.Cod` (integer)
-- `CanonicalArticle.source_extern_id: str | None` — WinMentor `NART.CodExtern` (preserved for A1/A2 decision)
+- `CanonicalArticle.source_extern_id: str | None` — WinMentor `NART.CodExtern` (populated into SAGA `ARTICOLE.COD` under A2 when non-empty; only preserved in `articles.csv` under A1)
 - `CanonicalAccount.source_id: str` — WinMentor `NCONT.Cod` (string, preserved verbatim)
 
 For transactional entities (`CanonicalInvoice`, `CanonicalJournalEntry`), `source_id` captures the WinMentor document key (`CodDoc`, `NrDoc` etc.) — not a Firebird PK — because SAGA will assign new PKs on import and no cross-reference to WinMentor PKs is needed post-migration.
@@ -203,6 +200,20 @@ The `report.json` per job carries:
   "canonical_schema_version": "..."
 }
 ```
+
+---
+
+## Phase 2 UI Impact
+
+The mapping review page (`/job/[id]/mapping`, per SPEC §2) must include a per-entity-class toggle for article code mapping:
+
+- **Toggle label:** "Preserve article codes from WinMentor (CodExtern)?"
+- **Default:** ON (A2 — populate `ARTICOLE.COD` from `CodExtern` when non-empty)
+- **Off state:** A1 — leave `ARTICOLE.COD` blank; SAGA auto-assigns on import
+
+This toggle is stored in the job's mapping profile and read by the SAGA article generator at conversion time. The generator must branch on this setting before populating `ARTICOLE.COD`. If A2 is selected and a given article has an empty `CodExtern`, the generator falls back to blank silently (no validation error — blank is valid per SAGA import spec).
+
+Phase 1 must wire the setting through the canonical schema (`CanonicalArticle.source_extern_id`), the mapping profile DB column, and the generator — even if Phase 2's UI toggle is not yet built, so that Phase 1's integration tests can exercise both paths.
 
 ---
 
@@ -228,8 +239,6 @@ The v2 feature requires: a second FDB upload step (or SAGA export), a new `/job/
 
 ## Open Questions for Dani
 
-1. **A1 vs A2 for articles.** Should the SAGA `ARTICOLE.COD` field be left blank (full fresh target) or populated with WinMentor's `CodExtern` when non-empty? This affects whether accountants retain barcode/SKU identity for articles. Answer depends on how the donor sample uses `CodExtern` — is it a meaningful barcode, a supplier reference, or effectively blank?
+1. **Warehouse codes (`GESTIUNI.COD`).** WinMentor's `NGEST.DB` has 3 warehouses with user-assigned codes. These codes appear in every invoice line item (`GESTIUNE` field). Should SAGA warehouse codes be preserved verbatim from WinMentor (3 records, all short codes), or is there a SAGA-side warehouse naming convention to follow? Fresh-target would leave warehouse `COD` blank; preserve-verbatim would carry WinMentor codes directly. This is a smaller decision than partner/article codes but should be explicit.
 
-2. **Warehouse codes (`GESTIUNI.COD`).** WinMentor's `NGEST.DB` has 3 warehouses with user-assigned codes. These codes appear in every invoice line item (`GESTIUNE` field). Should SAGA warehouse codes be preserved verbatim from WinMentor (3 records, all short codes), or is there a SAGA-side warehouse naming convention to follow? Fresh-target would leave warehouse `COD` blank; preserve-verbatim would carry WinMentor codes directly. This is a smaller decision than partner/article codes but should be explicit.
-
-3. **Single-run guarantee.** The conversion report's `partners.csv` is only valid for the specific SAGA import run it was generated for. If an accountant imports the same file twice, SAGA assigns different codes (or deduplicates on CIF for partners). Should Phase 1 add a "migration lock" warning to `report.json` — "these codes are only valid for a single production import run"?
+2. **Single-run guarantee.** The conversion report's `partners.csv` is only valid for the specific SAGA import run it was generated for. If an accountant imports the same file twice, SAGA assigns different codes (or deduplicates on CIF for partners). Should Phase 1 add a "migration lock" warning to `report.json` — "these codes are only valid for a single production import run"?
