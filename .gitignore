@@ -131,3 +131,5 @@ TODO.local.md
 *.p12
 *.pfx
 *.crt
+docs/saga-fdb-schema.sql
+samples/saga/CONT_BAZA.readonly.FDB
