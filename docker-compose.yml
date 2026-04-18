@@ -1,0 +1,116 @@
+# ---------------------------------------------------------------------------
+# Rapidport — Docker Compose
+#
+# Services defined here:
+#   postgres  — PostgreSQL 16 (pg-boss queue + application DB)
+#   worker    — Python conversion worker (pg-boss consumer)
+#
+# PLACEHOLDER NOTE: The Nuxt app service is not yet defined here.
+# Phase 2 will add the `app` service and wire it into this file.
+#
+# Secrets: DB password is read from .secrets/postgres_password (never inline).
+# Create the secrets directory before first run:
+#   mkdir -p .secrets && echo "changeme" > .secrets/postgres_password
+#   chmod 700 .secrets && chmod 600 .secrets/postgres_password
+# ---------------------------------------------------------------------------
+
+services:
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rapidport
+      POSTGRES_USER: rapidport
+      # Password is injected from the Docker secret — never inline plaintext
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - worker_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rapidport -d rapidport"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # Python worker — WinMentor → SAGA conversion (pg-boss consumer)
+  #
+  # Security constraints (per REQUIREMENTS.md §Infrastructure + SPEC §Worker):
+  #   user:      "1000:1000"  — non-root (matches UID/GID in Dockerfile)
+  #   mem_limit: 1g           — per SPEC §Worker isolation
+  #   cpus:      1.0          — per SPEC §Worker isolation
+  #   read_only: true         — immutable container filesystem
+  #   tmpfs /tmp              — only writable path at runtime; cleared on stop
+  #   network:   worker_net   — isolated bridge; no access to public internet
+  #                             except Anthropic API (enforced at reverse-proxy
+  #                             egress level in production — not in compose)
+  # -------------------------------------------------------------------------
+  worker:
+    build: ./worker
+    image: rapidport/worker:${WORKER_VERSION:-dev}
+    user: "1000:1000"
+    mem_limit: 1g
+    cpus: 1.0
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      # Required — worker fails to boot if missing (Pydantic BaseSettings)
+      DATABASE_URL: ${DATABASE_URL}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Embedded in report.json per every job output
+      WORKER_VERSION: ${WORKER_VERSION:-0.1.0}
+      CANONICAL_SCHEMA_VERSION: ${CANONICAL_SCHEMA_VERSION:-1.0.0}
+      # Optional — defaults applied in worker code
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MAX_HAIKU_CALLS_PER_JOB: ${MAX_HAIKU_CALLS_PER_JOB:-500}
+    volumes:
+      # Shared volume between worker and (future) Nuxt app container.
+      # Upload archives land in /data/jobs/{id}/upload/
+      # Conversion output lands in /data/jobs/{id}/output/
+      - jobs_data:/data/jobs
+    networks:
+      - worker_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  worker_net:
+    driver: bridge
+    # worker_net is intentionally isolated to the services defined above.
+    # Production egress allow-rules (Anthropic API at api.anthropic.com:443)
+    # are enforced by the Caddy reverse-proxy / firewall — not in compose.
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+
+  jobs_data:
+    # Shared between worker (and future Nuxt app) containers.
+    # In production this maps to a Hetzner volume (see deployment docs).
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+secrets:
+  postgres_password:
+    # File must exist before `docker compose up`.
+    # Never commit the actual password file — .secrets/ is in .gitignore.
+    file: ./.secrets/postgres_password
