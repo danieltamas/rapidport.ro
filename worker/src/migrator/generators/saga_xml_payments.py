@@ -28,8 +28,8 @@ _log = get_logger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-_ENCODING: Final[str] = "cp1250"
-_ENCODING_DECLARATION: Final[str] = "WIN1250"
+_ENCODING: Final[str] = "utf-8"
+_ENCODING_DECLARATION: Final[str] = "utf-8"
 _XML_DECLARATION: Final[str] = (
     f'<?xml version="1.0" encoding="{_ENCODING_DECLARATION}"?>\n'
 )

@@ -214,15 +214,16 @@ def generate_saga_output(
     # ------------------------------------------------------------------
     entity = "articole_contabile"
     try:
-        contabile_paths, chart_of_accounts_emitted = generate_articole_contabile_xml(
-            chart_of_accounts=data.chart_of_accounts,
+        contabile_path = generate_articole_contabile_xml(
+            entries=data.chart_of_accounts,
             output_dir=output_dir,
         )
-        _accept_paths(contabile_paths, entity, resolved_output_dir, files_written, errors)
+        chart_of_accounts_emitted = sum(1 for e in data.chart_of_accounts if e.analytical)
+        _accept_paths([contabile_path], entity, resolved_output_dir, files_written, errors)
         log.info(
             "saga_generation_entity_done",
             entity=entity,
-            files=len(contabile_paths),
+            files=1,
             emitted=chart_of_accounts_emitted,
         )
     except Exception:

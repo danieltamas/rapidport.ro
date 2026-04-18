@@ -28,8 +28,8 @@ __all__ = ["generate_articole_contabile_xml"]
 _log = get_logger(__name__)
 
 _OUTPUT_FILENAME = "ArticoleContabile.xml"
-_ENCODING = "cp1250"
-_ENCODING_DECLARATION = "WIN1250"
+_ENCODING = "utf-8"
+_ENCODING_DECLARATION = "utf-8"
 
 # XML template fragments — assembled with string concatenation to keep full
 # control over encoding and avoid ElementTree's automatic UTF-8 declaration.
