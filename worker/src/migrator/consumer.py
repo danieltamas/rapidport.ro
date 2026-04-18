@@ -10,10 +10,9 @@ Signal handling:
 Per-job timeout: 15 minutes (900 s) enforced by asyncio.wait_for.
 
 Pipeline note:
-  run_convert() duplicates the pipeline dispatch from cli._run_convert().
-  This is intentional (Option B): both the CLI and the consumer call the
-  underlying pipeline APIs directly. They do NOT import each other.
-  See DONE-cli-queue-consumer.md for the tradeoff discussion.
+  run_convert() now delegates to migrator.pipeline.run_pipeline() — the shared
+  core that also powers cli.py. Consumer-specific concerns (pg-boss polling,
+  SIGTERM/SIGINT, asyncio.wait_for timeout, retry policy, idempotency) stay here.
 """
 from __future__ import annotations
 
@@ -25,13 +24,13 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
 import asyncpg
 from pydantic import BaseModel
 
+from migrator.pipeline import PipelineEnv, run_pipeline
 from migrator.utils.db import apply_migrations, close_pool, create_pool
 from migrator.utils.logger import configure_logger, get_logger
 
@@ -119,22 +118,27 @@ class DiscoverPayload(BaseModel):
 
 @dataclass
 class _Env:
+    """Consumer-level env: database_url + PipelineEnv for the pipeline."""
+
     database_url: str
-    worker_version: str
-    canonical_schema_version: str
-    max_haiku_calls: int
+    pipeline: PipelineEnv
+
+    @property
+    def worker_version(self) -> str:
+        return self.pipeline.worker_version
+
+    @property
+    def canonical_schema_version(self) -> str:
+        return self.pipeline.canonical_schema_version
 
 
 def _load_env() -> _Env:
     missing = [k for k in ("DATABASE_URL",) if not os.environ.get(k, "").strip()]
     if missing:
         raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
-    schema_ver = os.environ.get("CANONICAL_SCHEMA_VERSION", "1.0").strip() or "1.0"
     return _Env(
         database_url=os.environ["DATABASE_URL"].strip(),
-        worker_version=os.environ.get("WORKER_VERSION", "0.0.0").strip() or "0.0.0",
-        canonical_schema_version=schema_ver,
-        max_haiku_calls=int(os.environ.get("MAX_HAIKU_CALLS_PER_JOB", "500") or "500"),
+        pipeline=PipelineEnv.from_env(),
     )
 
 
@@ -222,159 +226,6 @@ async def _check_rp_status(
         return None
 
 
-# ---------------------------------------------------------------------------
-# Pipeline helpers — mirrored from cli._MapStats + helpers (Option B)
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class _MapStats:
-    rule_hits: int = 0
-    cache_hits: int = 0
-    haiku_hits: int = 0
-
-
-async def _resolve_field(
-    pool: asyncpg.Pool,  # type: ignore[type-arg]
-    table: str,
-    field_name: str,
-    samples: list[str],
-    job_id: str,
-    max_haiku: int,
-    stats: _MapStats,
-) -> str | None:
-    from migrator.mappers import ai_assisted, rule_based
-
-    hit = rule_based.map_field(table, field_name)
-    if hit is not None:
-        stats.rule_hits += 1
-        return hit.target_field
-    try:
-        result = await ai_assisted.suggest_mapping(
-            pool=pool,
-            source_software="winmentor",
-            table_name=table,
-            field_name=field_name,
-            sample_values=samples,
-            job_id=job_id,
-            max_calls_per_job=max_haiku,
-        )
-        if result.tokens_in == 0:
-            stats.cache_hits += 1
-        else:
-            stats.haiku_hits += 1
-        return None if result.target_field == "UNMAPPABLE" else result.target_field
-    except Exception:
-        log.warning("field_mapping_failed", table=table, field=field_name)
-        return None
-
-
-async def _parse_table(
-    db_path: Path,
-    pool: asyncpg.Pool,  # type: ignore[type-arg]
-    job_id: str,
-    max_haiku: int,
-    stats: _MapStats,
-) -> tuple[list[dict[str, object]], dict[str, str]]:
-    from migrator.parsers.paradox import ParadoxParseError, read_standard
-    from migrator.parsers.registry import ParserKind, lookup
-    from migrator.parsers.winmentor import detect_encoding
-
-    enc = detect_encoding(db_path)
-    entry = lookup(db_path.name.upper())
-    rows: list[dict[str, object]] = []
-    try:
-        if entry is None or entry.parser == ParserKind.STANDARD:
-            rows = list(read_standard(db_path, encoding=enc))
-        else:
-            from migrator.parsers.paradox import read_fallback
-
-            rows = list(read_fallback(db_path))
-    except ParadoxParseError as exc:
-        log.warning("table_parse_error", table=db_path.stem, error=str(exc))
-        return [], {}
-    if not rows:
-        return [], {}
-
-    field_map: dict[str, str] = {}
-    for fn in rows[0]:
-        samples = [str(r.get(fn, ""))[:200] for r in rows[:5] if r.get(fn) is not None]
-        tgt = await _resolve_field(
-            pool, db_path.stem.upper(), fn, samples, job_id, max_haiku, stats
-        )
-        if tgt:
-            field_map[fn.upper()] = tgt
-    return rows, field_map
-
-
-def _remap(
-    rows: list[dict[str, object]], fmap: dict[str, str]
-) -> list[dict[str, object]]:
-    return [{fmap[k.upper()]: v for k, v in r.items() if k.upper() in fmap} for r in rows]
-
-
-def _build_partners(rows: list[dict[str, object]]) -> list[object]:
-    from migrator.canonical.partner import Partner
-
-    out: list[object] = []
-    for d in rows:
-        sid = str(d.get("source_id") or "")
-        if not sid:
-            continue
-        try:
-            out.append(
-                Partner(
-                    source_id=sid,
-                    name=str(d.get("name") or sid),
-                    cif=str(d.get("cif") or "") or None,
-                    partner_type="both",
-                )
-            )
-        except Exception:
-            log.warning("partner_build_failed")
-    return out
-
-
-def _build_articles(rows: list[dict[str, object]]) -> list[object]:
-    from migrator.canonical.article import Article
-
-    out: list[object] = []
-    for d in rows:
-        sid = str(d.get("source_id") or "")
-        if not sid:
-            continue
-        try:
-            out.append(
-                Article(
-                    source_id=sid,
-                    name=str(d.get("name") or sid),
-                    article_type="product",
-                    is_stock=True,
-                    vat_rate=Decimal(str(d.get("vat_rate") or "19")),
-                )
-            )
-        except Exception:
-            log.warning("article_build_failed")
-    return out
-
-
-def _build_chart(rows: list[dict[str, object]]) -> list[object]:
-    from migrator.canonical.support import ChartOfAccountsEntry
-
-    out: list[object] = []
-    for d in rows:
-        code = str(d.get("code") or "")
-        if not code:
-            continue
-        try:
-            out.append(
-                ChartOfAccountsEntry(
-                    code=code, name=str(d.get("name") or code), analytical="." in code
-                )
-            )
-        except Exception:
-            log.warning("chart_entry_build_failed")
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -389,17 +240,12 @@ async def run_convert(
 ) -> None:
     """Execute the full WinMentor → SAGA pipeline for one convert job.
 
-    Mirrors cli._run_convert() but operates on a ConvertPayload instead of
-    argparse.Namespace. Both call the pipeline APIs directly (Option B);
-    neither imports the other. Duplication is intentional for isolation.
+    Delegates canonical building to pipeline.run_pipeline(). Consumer-specific
+    concerns (pg-boss polling, SIGTERM/SIGINT, asyncio.wait_for timeout,
+    retry policy, idempotency) remain here and are NOT in pipeline.py.
     """
-    # Lazy imports — keep module-level imports minimal.
-    from migrator.canonical.article import Article
-    from migrator.canonical.partner import Partner
-    from migrator.canonical.support import ChartOfAccountsEntry
     from migrator.generators.orchestrator import CanonicalData, MappingProfile, generate_saga_output
     from migrator.mappers import usage as usage_mod
-    from migrator.parsers.registry import TABLE_REGISTRY
     from migrator.parsers.winmentor import detect_version
     from migrator.reports.conversion_report_json import ReportInput as JsonRI
     from migrator.reports.conversion_report_json import ReportIssue as JsonIssue
@@ -433,82 +279,61 @@ async def run_convert(
     try:
         await _progress(pool, job_id, "extracting", 10)
         src_ver = detect_version(extract_dir).version
-
-        db_files = [
-            p for p in sorted(extract_dir.rglob("*.DB")) if p.name.upper() in TABLE_REGISTRY
-        ]
-        log.info("parse_scope", table_count=len(db_files))
         await _progress(pool, job_id, "parsing", 10)
 
-        rows_by: dict[str, list[dict[str, object]]] = {}
-        fmap_by: dict[str, dict[str, str]] = {}
-        stats = _MapStats()
-        for db_path in db_files:
-            _r, _f = await _parse_table(db_path, pool, str(job_id), env.max_haiku_calls, stats)
-            rows_by[db_path.stem.upper()] = _r
-            fmap_by[db_path.stem.upper()] = _f
-
-        await _progress(pool, job_id, "mapping", 40)
         profile = MappingProfile(
             article_cod_extern_enabled=not payload.a1_articles,
             warehouse_code_enabled=not payload.a1_warehouses,
         )
         own_cif = os.environ.get("OWN_CIF", "")
 
-        def _get(t: str) -> list[dict[str, object]]:
-            return _remap(rows_by.get(t, []), fmap_by.get(t, {}))
-
-        partners: list[Partner] = [
-            p for p in _build_partners(_get("NPART")) if isinstance(p, Partner)
-        ]
-        articles: list[Article] = [
-            a for a in _build_articles(_get("NART")) if isinstance(a, Article)
-        ]
-        chart: list[ChartOfAccountsEntry] = [
-            e for e in _build_chart(_get("NCONT")) if isinstance(e, ChartOfAccountsEntry)
-        ]
-        await _progress(pool, job_id, "mapping", 70)
-
-        canonical = CanonicalData(
-            partners=partners,
-            articles=articles,
-            invoices=[],
-            payments=[],
-            chart_of_accounts=chart,
+        result = await run_pipeline(
+            pool=pool,
+            job_id=job_id,
+            extracted_dir=extract_dir,
+            profile=profile,
+            env=env.pipeline,
             own_cif=own_cif,
         )
-        await _progress(pool, job_id, "generating", 70)
+        await _progress(pool, job_id, "mapping", 70)
+
         output_dir.mkdir(parents=True, exist_ok=True)
+        await _progress(pool, job_id, "generating", 70)
+        canonical = CanonicalData(
+            partners=result.partners,
+            articles=result.articles,
+            invoices=result.invoices,
+            payments=result.payments,
+            chart_of_accounts=result.chart_of_accounts,
+            own_cif=own_cif,
+        )
         gen_stats = generate_saga_output(canonical, output_dir, profile)
         await _progress(pool, job_id, "generating", 90)
 
         completed_at = datetime.now(UTC)
         await _progress(pool, job_id, "reporting", 90)
 
+        all_reasons = result.invoice_reasons + result.payment_reasons
         json_issues = [
             JsonIssue(severity="warning", category="generation", message=e)
-            for e in gen_stats.errors
+            for e in gen_stats.errors + all_reasons
         ]
-        await write_report_json(
-            pool,
-            output_dir,
-            JsonRI(
-                job_id=job_id,
-                worker_version=env.worker_version,
-                canonical_schema_version=env.canonical_schema_version,
-                source_software="winmentor",
-                source_version=src_ver,
-                target_software="saga",
-                target_version="C 3.0",
-                mapping_profile_name=payload.mapping_profile,
-                generation_stats=gen_stats,
-                issues=json_issues,
-                rule_hits=stats.rule_hits,
-                cache_hits=stats.cache_hits,
-                haiku_hits=stats.haiku_hits,
-                warnings=[],
-            ),
-        )
+        await write_report_json(pool, output_dir, JsonRI(
+            job_id=job_id,
+            worker_version=env.worker_version,
+            canonical_schema_version=env.canonical_schema_version,
+            source_software="winmentor",
+            source_version=src_ver,
+            target_software="saga",
+            target_version="C 3.0",
+            mapping_profile_name=payload.mapping_profile,
+            generation_stats=gen_stats,
+            issues=json_issues,
+            rule_hits=result.rule_hits,
+            cache_hits=result.cache_hits,
+            haiku_hits=result.haiku_hits,
+            warnings=[],
+        ))
 
         haiku_calls = await usage_mod.count_for_job(pool, job_id)
         t_in, t_out = await usage_mod.total_tokens_for_job(pool, job_id)
@@ -518,45 +343,44 @@ async def run_convert(
             PdfIssue(entity="generation", source_id="", severity="warning", message=e)
             for e in gen_stats.errors
         ]
-        write_report_pdf(
-            output_dir,
-            PdfRI(
-                worker_version=env.worker_version,
-                canonical_schema_version=env.canonical_schema_version,
-                source_software="winmentor",
-                source_version_detected=src_ver or "unknown",
-                target_software="saga",
-                target_version="C 3.0",
-                started_at=started_at,
-                completed_at=completed_at,
-                ai_usage=AiUsage(
-                    haiku_calls=haiku_calls, tokens_in=t_in, tokens_out=t_out, cost_usd=cost
-                ),
-                summary={
-                    "partners": EntitySummary(
-                        total=len(partners),
-                        converted=len(partners),
-                        skipped=0,
-                        errors=0,
-                    ),
-                    "articles": EntitySummary(
-                        total=len(articles),
-                        converted=len(articles),
-                        skipped=0,
-                        errors=0,
-                    ),
-                },
-                issues=pdf_issues,
+        write_report_pdf(output_dir, PdfRI(
+            worker_version=env.worker_version,
+            canonical_schema_version=env.canonical_schema_version,
+            source_software="winmentor",
+            source_version_detected=src_ver or "unknown",
+            target_software="saga",
+            target_version="C 3.0",
+            started_at=started_at,
+            completed_at=completed_at,
+            ai_usage=AiUsage(
+                haiku_calls=haiku_calls, tokens_in=t_in, tokens_out=t_out, cost_usd=cost
             ),
-        )
+            summary={
+                "partners": EntitySummary(
+                    total=len(result.partners), converted=len(result.partners),
+                    skipped=0, errors=0),
+                "articles": EntitySummary(
+                    total=len(result.articles), converted=len(result.articles),
+                    skipped=0, errors=0),
+                "invoices": EntitySummary(
+                    total=len(result.invoices), converted=len(result.invoices),
+                    skipped=len(result.invoice_reasons), errors=0),
+                "payments": EntitySummary(
+                    total=len(result.payments), converted=len(result.payments),
+                    skipped=len(result.payment_reasons), errors=0),
+            },
+            issues=pdf_issues,
+        ))
 
         await _mark_rp_succeeded(pool, job_id)
         await _progress(pool, job_id, "done", 100)
         log.info(
             "job_completed",
             rapidport_job_id=str(job_id),
-            partners=len(partners),
-            articles=len(articles),
+            partners=len(result.partners),
+            articles=len(result.articles),
+            invoices=len(result.invoices),
+            payments=len(result.payments),
         )
 
     finally:
