@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from migrator.canonical.support import Currency
+
 if TYPE_CHECKING:
     from migrator.canonical.partner import Partner
     from migrator.canonical.article import Article
@@ -24,10 +26,6 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Literal type aliases
 # ---------------------------------------------------------------------------
-
-Currency = Literal["RON", "EUR", "USD", "GBP", "CHF"]
-"""Supported currencies. RON/EUR/USD are v1 priorities (foreign-currency
-invoices are in scope per docs/questions-for-dani.md)."""
 
 InvoiceDirection = Literal["purchase", "sale"]
 """purchase → SAGA Intrări (incoming); sale → SAGA Ieșiri (outgoing)."""
