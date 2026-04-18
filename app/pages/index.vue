@@ -178,8 +178,10 @@ const faqs = [
           >
             Autentificare
           </Button>
-          <Button class="rounded-full h-10 px-5 text-sm font-medium">
-            Începe portarea
+          <Button class="rounded-full h-10 px-5 text-sm font-medium" as-child>
+            <NuxtLink to="/upload">
+              Începe portarea
+            </NuxtLink>
           </Button>
         </div>
       </div>
