@@ -174,17 +174,29 @@ select:not(:disabled) {
   --cc-bg: #FFFFFF;
   --cc-primary-color: #0A0A0A;
   --cc-secondary-color: #525252;
+
   --cc-btn-primary-bg: #C72E49;
   --cc-btn-primary-color: #FFFFFF;
+  --cc-btn-primary-border-color: #C72E49;
   --cc-btn-primary-hover-bg: #A82541;
   --cc-btn-primary-hover-color: #FFFFFF;
+  --cc-btn-primary-hover-border-color: #A82541;
+
   --cc-btn-secondary-bg: #F5F5F5;
   --cc-btn-secondary-color: #0A0A0A;
+  --cc-btn-secondary-border-color: #F5F5F5;
   --cc-btn-secondary-hover-bg: #E5E5E5;
   --cc-btn-secondary-hover-color: #0A0A0A;
+  --cc-btn-secondary-hover-border-color: #E5E5E5;
+
   --cc-separator-border-color: rgba(0, 0, 0, 0.08);
   --cc-cookie-category-block-bg: #FAFAFA;
+  --cc-cookie-category-block-border: rgba(0, 0, 0, 0.06);
   --cc-cookie-category-block-hover-bg: #F5F5F5;
+  --cc-cookie-category-block-hover-border: rgba(0, 0, 0, 0.08);
+  --cc-cookie-category-expanded-block-bg: #FAFAFA;
+  --cc-cookie-category-expanded-block-hover-bg: #F5F5F5;
+
   --cc-section-border: rgba(0, 0, 0, 0.08);
   --cc-overlay-bg: rgba(0, 0, 0, 0.4);
   --cc-webkit-scrollbar-bg: #E5E5E5;
@@ -192,26 +204,50 @@ select:not(:disabled) {
   --cc-footer-bg: #FAFAFA;
   --cc-footer-color: #737373;
   --cc-footer-border-color: rgba(0, 0, 0, 0.08);
-  --cc-toggle-readonly-bg: #D4D4D4;
+
+  /* Toggle — readonly (always-on) uses brand red so the "active/required" state reads correctly */
+  --cc-toggle-readonly-bg: #C72E49;
+  --cc-toggle-readonly-knob-bg: #FFFFFF;
+  --cc-toggle-readonly-knob-icon-color: #C72E49;
+  --cc-toggle-on-bg: #C72E49;
+  --cc-toggle-off-bg: #D4D4D4;
+  --cc-toggle-on-knob-bg: #FFFFFF;
+  --cc-toggle-off-knob-bg: #FFFFFF;
+
   --cc-border-radius: 0.75rem;
   --cc-btn-border-radius: 9999px;
 }
 
-/* Remove black border on primary (red) buttons — the CSS var doesn't fully
-   kill the default button border, so force it to none explicitly. */
+/* Hard-force reasonable border-radius on every section container so the
+   table doesn't get clipped by a pill shape. v3 has several class variants
+   (pm__section, pm__section--expandable, pm__section-desc-wrapper, etc.)
+   — catch them all with a wildcard attribute selector. */
+#cc-main [class*="pm__section"] {
+  border-radius: 0.75rem !important;
+}
+
+/* Expanded content areas shouldn't clip horizontally scrollable tables */
+#cc-main .pm__section-desc-wrapper,
+#cc-main .pm__section-table-wrapper,
+#cc-main [class*="pm__section-desc"],
+#cc-main [class*="pm__section-table"] {
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+}
+
+#cc-main table,
+#cc-main .pm__section-table {
+  border-radius: 0 !important;  /* table inside a rounded wrapper; no double-radius */
+  width: 100%;
+}
+
+/* Kill any residual border on primary buttons (brand-red ones) */
 #cc-main .cm__btn--primary,
 #cc-main .pm__btn--primary,
 #cc-main button[data-role="accept-all"],
 #cc-main button[data-role="save"] {
   border: none !important;
   outline: none !important;
-}
-
-/* "Mai multe informații" + all info blocks: enforce reasonable border-radius
-   (the library's default is a pill-ish ~9999px on some section variants). */
-#cc-main .pm__section,
-#cc-main .pm__section-desc-wrapper,
-#cc-main .pm__section--expandable {
-  border-radius: 0.75rem !important;
+  box-shadow: none !important;
 }
 
