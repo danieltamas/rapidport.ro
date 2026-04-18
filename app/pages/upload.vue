@@ -4,10 +4,18 @@ import { Card, CardContent } from '~/components/ui/card'
 import { Upload, File, ShieldCheck, Clock, Info } from 'lucide-vue-next'
 
 useHead({
-  title: 'Încarcă arhiva WinMentor — Rapidport',
-  meta: [{ name: 'description', content: 'Încărcați arhiva companiei din WinMentor. Validăm structura înainte să plătiți.' }],
+  title: 'Încarcă arhiva — Rapidport',
+  meta: [{ name: 'description', content: 'Încărcați arhiva din WinMentor sau SAGA. Detectăm direcția automat și validăm structura înainte să plătiți.' }],
   htmlAttrs: { lang: 'ro' },
 })
+
+const sourceOptions = [
+  { id: 'winmentor', label: 'WinMentor', sub: 'export → SAGA' },
+  { id: 'saga', label: 'SAGA', sub: 'export → WinMentor' },
+  { id: 'auto', label: 'Detectează automat', sub: 'pe baza structurii arhivei' },
+]
+
+const source = ref<'winmentor' | 'saga' | 'auto'>('auto')
 
 const file = ref<File | null>(null)
 const dragover = ref(false)
@@ -42,12 +50,39 @@ function fmtSize(n: number) {
 
         <div class="relative mx-auto max-w-3xl px-6 py-20">
           <div class="text-sm font-medium text-primary mb-3">Pas 1 din 3 · Încărcare</div>
-          <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-tight mb-4">
-            Încărcați arhiva WinMentor.
+          <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-tight mb-4" style="color: #000;">
+            Încărcați arhiva.
           </h1>
           <p class="text-lg text-muted-foreground mb-10 max-w-xl">
-            Exportați backup-ul companiei din WinMentor (fișier <code class="font-mono text-sm">.tgz</code>, <code class="font-mono text-sm">.zip</code>, <code class="font-mono text-sm">.7z</code> sau <code class="font-mono text-sm">.rar</code>) și trageți-l mai jos. Validăm structura înainte să plătiți.
+            Exportați backup-ul companiei din <strong class="text-foreground">WinMentor</strong> sau <strong class="text-foreground">SAGA</strong> (fișier <code class="font-mono text-sm">.tgz</code>, <code class="font-mono text-sm">.zip</code>, <code class="font-mono text-sm">.7z</code> sau <code class="font-mono text-sm">.rar</code>) și trageți-l mai jos. Detectăm direcția portării automat și validăm structura înainte să plătiți.
           </p>
+
+          <div class="mb-6">
+            <label class="block text-sm font-medium mb-3">Software sursă</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                v-for="opt in sourceOptions"
+                :key="opt.id"
+                type="button"
+                class="rounded-xl border p-4 text-left transition-all cursor-pointer"
+                :class="source === opt.id
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border bg-card hover:border-primary/40'"
+                @click="source = opt.id as typeof source"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="size-4 rounded-full border-2 grid place-items-center"
+                    :class="source === opt.id ? 'border-primary' : 'border-border'"
+                  >
+                    <div v-if="source === opt.id" class="size-2 rounded-full bg-primary" />
+                  </div>
+                  <div class="font-semibold text-sm">{{ opt.label }}</div>
+                </div>
+                <div class="mt-1 text-xs text-muted-foreground ml-6">{{ opt.sub }}</div>
+              </button>
+            </div>
+          </div>
 
           <div
             class="rounded-2xl border-2 border-dashed p-12 text-center transition-all cursor-pointer"

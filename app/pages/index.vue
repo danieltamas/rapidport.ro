@@ -607,75 +607,8 @@ const faqs = [
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- FOOTER — light, matches page aesthetic                              -->
+    <!-- FOOTER — shared component (works on every page, cookie prefs wired) -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <footer>
-      <div class="mx-auto max-w-[1280px] px-6 py-16">
-        <div class="grid md:grid-cols-12 gap-10 pb-10 border-b border-border">
-          <div class="md:col-span-5">
-            <div class="flex items-center gap-2 text-xl font-bold tracking-tight mb-4">
-              <span class="text-primary">■</span>
-              <span>Rapidport</span>
-            </div>
-            <p class="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Portare rapidă între software-uri contabile. Pentru contabili care își respectă timpul.
-            </p>
-          </div>
-          <div class="md:col-span-2 md:col-start-7">
-            <div class="text-xs font-semibold text-foreground mb-4">Produs</div>
-            <ul class="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#cum" class="hover:text-primary transition-colors">Cum funcționează</a></li>
-              <li><a href="#pret" class="hover:text-primary transition-colors">Preț</a></li>
-              <li><a href="#intrebari" class="hover:text-primary transition-colors">Întrebări</a></li>
-            </ul>
-          </div>
-          <div class="md:col-span-2">
-            <div class="text-xs font-semibold text-foreground mb-4">Contact</div>
-            <ul class="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <a href="mailto:support@rapidport.ro" class="hover:text-primary transition-colors inline-flex items-center gap-1.5">
-                  <Mail class="size-3.5" :stroke-width="2" />
-                  support@rapidport.ro
-                </a>
-              </li>
-              <li>
-                <a href="/auth/login" class="hover:text-primary transition-colors">Autentificare</a>
-              </li>
-            </ul>
-          </div>
-          <div class="md:col-span-2">
-            <div class="text-xs font-semibold text-foreground mb-4">Legal</div>
-            <ul class="space-y-2 text-sm text-muted-foreground">
-              <li><a href="/legal/terms" class="hover:text-primary transition-colors">Termeni și condiții</a></li>
-              <li><a href="/legal/privacy" class="hover:text-primary transition-colors">Confidențialitate</a></li>
-              <li><a href="/legal/dpa" class="hover:text-primary transition-colors">DPA (GDPR)</a></li>
-              <li><a href="/legal/refund" class="hover:text-primary transition-colors">Politica de refund</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Company legal entity — required for BT / ANAF / Terms of Service -->
-        <div class="pt-8 pb-6 text-xs text-muted-foreground leading-relaxed max-w-3xl">
-          Serviciu operat de <span class="text-foreground font-medium">Gamerina SRL</span> · CUI
-          <span class="font-mono">RO43020532</span> · Str. Cometei 2/4, 400493, Cluj-Napoca, România.
-          Facturi emise prin <span class="text-foreground">SmartBill</span> și transmise automat prin
-          <span class="text-foreground">eFactura</span> către ANAF.
-        </div>
-
-        <div class="pt-4 flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground border-t border-border">
-          <span>© 2026 Rapidport</span>
-          <div class="flex items-center gap-5">
-            <button
-              type="button"
-              class="hover:text-primary transition-colors"
-              onclick="window.CookieConsent?.showPreferences()"
-            >
-              Preferințe cookie-uri
-            </button>
-            <span class="text-muted-foreground/60">Rapidport · portare rapidă</span>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <LayoutSiteFooter />
   </div>
 </template>
