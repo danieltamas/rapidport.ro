@@ -14,9 +14,9 @@ dependencies = [
   "tenacity>=9.0",         # retry with backoff
   "structlog>=24.0",       # JSON logging
   "asyncpg>=0.29",         # Postgres from worker
-  # TODO(bootstrap-db-minimal): verify actual package name — pg-boss-py may not exist;
-  # may need direct asyncpg pg-boss polling instead
-  "pg-boss-py>=0.1",
+  # pg-boss has no maintained Python client (verified bootstrap-db-minimal 2026-04-18).
+  # consumer-pgboss task implements direct asyncpg polling of pgboss.job tables.
+  # See worker/PG_BOSS_NOTES.md for the approach.
   "reportlab>=4.0",        # report.pdf Romanian font embedding
   "dbfread>=2.0",          # read DBF for test fixtures
   "pydbf>=0.1",            # write DBF for SAGA output
