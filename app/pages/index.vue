@@ -210,7 +210,7 @@ const faqs = [
 
           <p class="mt-8 text-lg text-muted-foreground leading-relaxed max-w-xl">
             Portare rapidă între software-uri contabile, în orice direcție. Astăzi:
-            <span class="text-foreground font-medium inline-flex items-center gap-1">WinMentor <ArrowLeftRight class="size-4 inline" :stroke-width="2" /> SAGA</span>, în 15 minute, cu verificare pas cu pas și raport detaliat. Urmează Ciel, Oblio, SmartBill și alte direcții.
+            <span class="text-foreground font-medium inline-flex items-center gap-1">WinMentor <ArrowLeftRight class="size-4 inline" :stroke-width="2" /> SAGA</span>, în 15 minute, cu verificare pas cu pas și raport detaliat.
           </p>
 
           <div class="mt-10 flex flex-wrap gap-3">
@@ -575,10 +575,10 @@ const faqs = [
       <div class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[40rem] rounded-full bg-gradient-to-br from-primary/15 via-orange-200/15 to-transparent blur-3xl" />
       <div class="relative mx-auto max-w-[1280px] px-6 py-24 md:py-28 text-center">
         <h2 class="text-4xl md:text-6xl font-bold tracking-[-0.03em] leading-[1.05] max-w-3xl mx-auto">
-          Gata să treceți la SAGA?
+          Portați acum. Plătiți doar<br class="hidden md:inline"> dacă validarea trece.
         </h2>
         <p class="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
-          Fără cont, fără abonament. Încărcați arhiva, validăm structura, vedeți raportul — abia apoi plătiți.
+          Fără cont, fără abonament, fără risc. Încărcați arhiva, analizăm structura gratuit, vedeți raportul — abia apoi plătiți.
         </p>
         <div class="mt-10 flex justify-center">
           <Button class="rounded-full h-14 px-8 text-base font-medium" as-child>

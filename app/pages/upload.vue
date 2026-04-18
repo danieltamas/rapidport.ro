@@ -121,7 +121,7 @@ function fmtSize(n: number) {
             <Card class="border-border">
               <CardContent class="pt-6">
                 <Info class="size-5 text-primary mb-3" :stroke-width="2" />
-                <div class="text-sm font-semibold mb-1">Date nestocate permanent</div>
+                <div class="text-sm font-semibold mb-1">Date stocate temporar</div>
                 <div class="text-xs text-muted-foreground leading-relaxed">Arhiva și fișierele generate se șterg automat după 30 de zile.</div>
               </CardContent>
             </Card>

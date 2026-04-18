@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { Mail } from 'lucide-vue-next'
 
-const { $cookieConsent } = useNuxtApp()
-
+// Import CookieConsent directly — v3 is a singleton, .run() in the client plugin
+// sets up state, this import hits the same instance. Bypasses Nuxt provide entirely.
 function openCookiePrefs() {
-  $cookieConsent?.showPreferences?.()
+  if (typeof window === 'undefined') return
+  import('vanilla-cookieconsent').then((cc) => {
+    cc.showPreferences()
+  }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[cookie-consent] showPreferences failed', err)
+  })
 }
 </script>
 

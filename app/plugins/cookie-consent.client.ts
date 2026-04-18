@@ -75,10 +75,14 @@ export default defineNuxtPlugin(() => {
     },
   })
 
-  // Expose for use by components (e.g., footer "Preferințe cookie-uri" button)
+  // Expose individual methods as Nuxt provide helpers for components.
+  // Providing the whole module namespace occasionally gets stripped by
+  // bundler/tree-shake; concrete function handles are robust.
   return {
     provide: {
-      cookieConsent: CookieConsent,
+      showCookiePreferences: () => CookieConsent.showPreferences(),
+      showCookieConsent: () => CookieConsent.show(true),
+      hideCookieConsent: () => CookieConsent.hide(),
     },
   }
 })

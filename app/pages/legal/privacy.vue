@@ -5,11 +5,11 @@ useHead({
   htmlAttrs: { lang: 'ro' },
 })
 
-const { $cookieConsent } = useNuxtApp()
+const { $showCookiePreferences } = useNuxtApp()
 
 function openCookiePrefs(event: Event) {
   event.preventDefault()
-  $cookieConsent?.showPreferences?.()
+  $showCookiePreferences?.()
 }
 </script>
 

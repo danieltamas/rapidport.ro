@@ -151,6 +151,23 @@ code, pre, kbd, samp, .font-mono {
   font-family: 'JetBrains Mono', 'Menlo', monospace;
 }
 
+/* Interactive elements always show the hand cursor — browser default for
+   <button> is "default", we override so clickability is visible. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+summary,
+label[for],
+input[type="submit"]:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="file"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
 /* Cookie consent (vanilla-cookieconsent v3) — Rapidport theme override */
 #cc-main {
   --cc-font-family: 'Inter', system-ui, -apple-system, sans-serif;
