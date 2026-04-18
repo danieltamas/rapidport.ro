@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { Button } from '~/components/ui/button'
+
+function goTo(path: string) {
+  return navigateTo(path)
+}
 </script>
 
 <template>
@@ -18,11 +22,18 @@ import { Button } from '~/components/ui/button'
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Button variant="ghost" class="hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium" as-child>
-          <NuxtLink to="/auth/login">Autentificare</NuxtLink>
+        <Button
+          variant="ghost"
+          class="hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium"
+          @click="goTo('/auth/login')"
+        >
+          Autentificare
         </Button>
-        <Button class="rounded-full h-10 px-5 text-sm font-medium" as-child>
-          <NuxtLink to="/upload">Începe portarea</NuxtLink>
+        <Button
+          class="rounded-full h-10 px-5 text-sm font-medium"
+          @click="goTo('/upload')"
+        >
+          Începe portarea
         </Button>
       </div>
     </div>
