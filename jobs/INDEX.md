@@ -9,8 +9,8 @@ Master index of all jobs for the rapidport.ro project. See `SPEC.md` for the pro
 | Job | Phase | Status | Duration | Gate | Job File |
 | --- | --- | --- | --- | --- | --- |
 | `phase0-discovery` | Phase 0 — Discovery & Validation | **done** — merged to main 2026-04-18 (gate passed with SAGA Phase C deferral) | 2–3 days | SPEC §0.5 | [JOB.md](./phase0-discovery/JOB.md) |
-| `phase1-worker` | Phase 1 — Core Pipeline (Python worker) | pending (SAGA Phase C validation — live import against installed SAGA — carried forward to Phase 1 `generators-*` tasks as a sub-criterion per Phase 0 gate partial-pass) | 5–7 days | SPEC §1.10 | [JOB.md](./phase1-worker/JOB.md) |
-| `phase2-nuxt` | Phase 2 — Nuxt App, Admin, Productization | `bootstrap` group: **7/7 done on main** ✓. Other groups (security-baseline, schema, auth-*, api-*, pages-*, etc.) blocked on phase1 gate. | 5–7 days | SPEC §2.8 | [JOB.md](./phase2-nuxt/JOB.md) |
+| `phase1-worker` | Phase 1 — Core Pipeline (Python worker) | **done** — merged to main 2026-04-19 (gate passed with deferrals: SAGA Phase C validation carried from Phase 0; mapping-profile save/load deferred to Phase 2 `pages-mapping`; runtime smoke tests owner=Dani pre-production) | 5–7 days | SPEC §1.10 | [JOB.md](./phase1-worker/JOB.md) |
+| `phase2-nuxt` | Phase 2 — Nuxt App, Admin, Productization | `bootstrap` group: **7/7 done on main** ✓. Other groups (security-baseline, schema, auth-*, api-*, pages-*, etc.) **unblocked** — Phase 1 gate passed. `pages-mapping` picks up mapping-profile save/load carry-forward from Phase 1. | 5–7 days | SPEC §2.8 | [JOB.md](./phase2-nuxt/JOB.md) |
 
 ## Archived
 
