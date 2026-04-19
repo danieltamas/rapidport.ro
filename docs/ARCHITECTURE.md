@@ -4,13 +4,13 @@ Current system architecture. Updated after every task that changes routes, schem
 
 ---
 
-## Current State (2026-04-17)
+## Current State (2026-04-19)
 
-Pre-production. Pre-launch. Three jobs in progress:
+Pre-production. Pre-launch.
 
-- `phase0-discovery` — samples acquired; `table-inventory` + `saga-import-schema` tasks ready to run
-- `phase2-nuxt/bootstrap` group — **7/7 tasks done on main** ✓ (`bootstrap-nuxt`, `bootstrap-theme`, `bootstrap-env`, `bootstrap-fonts`, `bootstrap-drizzle`, `bootstrap-shadcn-setup`, `bootstrap-primitives`).
-- `phase1-worker` and rest of `phase2-nuxt` — blocked per SOP
+- `phase0-discovery` — **done, merged to main** (2026-04-18).
+- `phase1-worker` — **done, merged to main** (2026-04-19). Python worker (21 modules, 7,409 LoC) on main; gate passed with deferrals documented in `jobs/phase1-worker/GATE.md`.
+- `phase2-nuxt` — Wave 1 merged (2026-04-19): `security-baseline` group (3/3) + `schema-users-sessions` (first of 6 `schema-*` tasks). Bootstrap group already on main (7/7, merged 2026-04-17).
 
 **UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
 
@@ -52,8 +52,15 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── schema/
 │   │   │   │   ├── jobs.ts            # minimal jobs table — Phase 1 worker uses progress_* cols
 │   │   │   │   ├── mapping_cache.ts   # cached Haiku field mappings, unique (source, table, field)
-│   │   │   │   └── ai_usage.ts        # per-call Anthropic token + cost tracking
+│   │   │   │   ├── ai_usage.ts        # per-call Anthropic token + cost tracking
+│   │   │   │   ├── users.ts           # users — email (unique) + email_hash (indexed) + deleted_at soft-delete
+│   │   │   │   ├── sessions.ts        # user sessions — token_hash (SHA-256), user_id FK cascade, no IP bind
+│   │   │   │   └── magic_link_tokens.ts  # hashed single-use tokens — 15-min TTL, email+expires_at index
 │   │   │   └── client.ts              # pg Pool (max 20) + Drizzle instance, exports `db` and `pool`
+│   │   ├── middleware/                # Nitro global middleware (alphabetical load order)
+│   │   │   ├── csrf.ts                # double-submit cookie (rp_csrf ↔ x-csrf-token), webhook exempt
+│   │   │   ├── rate-limit.ts          # sliding window on rate_limits table; fail-closed for admin login
+│   │   │   └── security-headers.ts    # HSTS, strict CSP (no unsafe-*), X-Frame, Referrer, Permissions-Policy
 │   │   ├── utils/
 │   │   │   └── env.ts                 # Zod EnvSchema; the only reader of process.env in app code
 │   │   └── plugins/
@@ -61,6 +68,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
 │   ├── drizzle/
 │   │   ├── 0000_steady_malcolm_colcord.sql   # baseline migration — jobs, mapping_cache, ai_usage
+│   │   ├── 0001_nebulous_malcolm_colcord.sql # schema-users-sessions — users, sessions, magic_link_tokens
 │   │   └── meta/                      # drizzle-kit journal + snapshot
 │   └── .nvmrc                         # Node 22
 

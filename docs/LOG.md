@@ -6,6 +6,37 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ---
 
+## 2026-04-19
+
+### `phase2-nuxt / security-baseline` group — merged to main
+
+**Merge commit:** `6f475c3` (group → main, --no-ff)
+
+**Task commits (squashed into group):**
+- `8688db1` — `sec(nuxt): add global security-headers middleware`
+- `cfb6fb1` — `sec(api): CSRF middleware with double-submit cookie pattern`
+- `edf89a3` — `sec(api): sliding-window rate limit middleware`
+
+**Summary:** Three Nitro middleware modules land the SPEC §S.1/§S.2/§S.10 baseline. `security-headers.ts` sets HSTS, strict CSP (no `unsafe-inline`/`unsafe-eval`, Stripe + Google OAuth allowlisted), X-Frame, Referrer, Permissions-Policy. `csrf.ts` enforces double-submit cookie (`rp_csrf` ↔ `x-csrf-token`) on POST/PUT/PATCH/DELETE with `crypto.timingSafeEqual`; only `/api/webhooks/*` is exempt (admin routes are NOT). `rate-limit.ts` implements sliding-window against the `rate_limits` table for `POST /api/jobs` (10/h), `PUT /api/jobs/{id}/upload` (3/h), and `GET /admin/login` (10/h fail-closed); all SQL is parameterized via Drizzle `sql` template.
+
+**Deferred to follow-up tasks:**
+- Magic-link `body.email` rate limit — handled in the `auth-magic-link-request` handler (middleware runs before body validation).
+- Catch-all `Other GETs 300/min` and `Other mutations 60/min` from SPEC §S.10.
+- CSP nonce for any future inline SSR style.
+- Client-side CSRF helper (composable) — lands with `pages-*` tasks.
+
+**Reports:** `jobs/phase2-nuxt/DONE-security-{headers,csrf,rate-limit}.md`
+
+### `phase2-nuxt / schema / schema-users-sessions` — merged to main
+
+**Merge commit:** `e3ecf05` (group → main, --no-ff) · task: `4ff2111`
+
+**Summary:** First task in the `schema` group. Added three Drizzle tables (`users`, `sessions`, `magic_link_tokens`) as per-table sub-files under `app/server/db/schema/` — matching the existing `jobs.ts` / `mapping_cache.ts` / `ai_usage.ts` split pattern. Barrel `app/server/db/schema.ts` re-exports them. Generated migration `app/drizzle/0001_nebulous_malcolm_colcord.sql` (3 CREATE TABLE + 1 FK cascade + 4 indexes). Establishes the "one sub-file per table group" convention for the remaining five `schema-*` tasks to parallelize without touching each other's files. Migration not yet applied — operator runs `npm run db:migrate` against the live DB.
+
+**Reports:** `jobs/phase2-nuxt/DONE-schema-users-sessions.md`
+
+---
+
 ## 2026-04-18
 
 ### `phase0-discovery / discovery / saga-import-schema` — committed to main
