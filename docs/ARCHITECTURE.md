@@ -10,7 +10,7 @@ Pre-production. Pre-launch.
 
 - `phase0-discovery` — **done, merged to main** (2026-04-18).
 - `phase1-worker` — **done, merged to main** (2026-04-19). Python worker (21 modules, 7,409 LoC) on main; gate passed with deferrals documented in `jobs/phase1-worker/GATE.md`.
-- `phase2-nuxt` — Waves 1 + 2 merged (2026-04-19): `security-baseline` group (3/3), `schema` group (6/6). Bootstrap group already on main (7/7, merged 2026-04-17). **13 of 17 Phase 2 groups remain** (`auth-user`, `auth-admin`, `api-jobs`, `api-webhooks`, `api-admin`, `pages-public`, `pages-admin`, `gdpr-cleanup`, `email-guide`, `i18n`, `observability`, `infra`, `ci-tests`, `gate`).
+- `phase2-nuxt` — Waves 1 + 2 + 3 merged (2026-04-19): `security-baseline` (3/3), `schema` (6/6), `auth-user` (5/5), `auth-admin` (4/4). Bootstrap already on main (7/7). **11 of 17 Phase 2 groups remain** (`api-jobs`, `api-webhooks`, `api-admin`, `pages-public`, `pages-admin`, `gdpr-cleanup`, `email-guide`, `i18n`, `observability`, `infra`, `ci-tests`, `gate`).
 
 **UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
 
@@ -72,12 +72,23 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── rate-limit.ts          # sliding window on rate_limits table; fail-closed for admin login
 │   │   │   └── security-headers.ts    # HSTS, strict CSP (no unsafe-*), X-Frame, Referrer, Permissions-Policy
 │   │   ├── utils/
-│   │   │   ├── env.ts                 # Zod EnvSchema (now with ADMIN_EMAILS); only reader of process.env
+│   │   │   ├── env.ts                 # Zod EnvSchema (now with ADMIN_EMAILS + Resend + Google OAuth); only reader of process.env
 │   │   │   ├── auth-user.ts           # user session lifecycle — SHA-256 hashed tokens, 30d TTL
 │   │   │   ├── auth-admin.ts          # admin session lifecycle — 8h TTL, IP-hash bound, 'admin_session' cookie
 │   │   │   ├── anonymous-token.ts     # per-job access token — cookie job_access_${id}, SameSite Strict
 │   │   │   ├── assert-admin-session.ts # IP drift → revoke+401; allowlist miss → 403
-│   │   │   └── assert-job-access.ts   # three-way gate: admin (+audit) → owner → anon token → 403
+│   │   │   ├── assert-job-access.ts   # three-way gate: admin (+audit) → owner → anon token → 403
+│   │   │   ├── email.ts               # Resend wrapper, single-instance, sendEmail() — never logs recipient/body
+│   │   │   └── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── magic-link.post.ts       # issue magic link (rate-limited 5/hr per email, fail-closed)
+│   │   │   │   ├── verify.get.ts            # consume magic link + session + anonymous-job claim
+│   │   │   │   └── google/
+│   │   │   │       ├── start.get.ts         # PKCE + state → Google authorize URL (302)
+│   │   │   │       └── callback.get.ts      # one-shot state → allowlist → createAdminSession
+│   │   │   └── admin/
+│   │   │       └── logout.post.ts           # revokeAdminSession + audit
 │   │   └── plugins/
 │   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)

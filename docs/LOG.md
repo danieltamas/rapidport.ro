@@ -8,6 +8,32 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-19
 
+### `phase2-nuxt / auth-user + auth-admin` Wave 3 B — both groups complete
+
+**Merge commits:**
+- `fa83d64` — auth-user final (magic-link request + verify)
+- `367d900` — auth-admin final (google start + callback + admin logout)
+- `ed5131f` — prep (env extension + `utils/email.ts` Resend wrapper + `utils/google-oauth.ts` PKCE helpers + `resend` dep)
+
+**Summary:** 5 handler workers in parallel. 4 shipped clean; `auth-admin-logout` was written by the worker but blocked at `git add` by the harness — orchestrator reconstructed the handler from the spec (it's 35 lines; worker's draft was lost when its worktree was removed). All other handlers landed as submitted.
+
+**New handlers on main:**
+- `POST /api/auth/magic-link` — Zod email, fail-closed 5/hr rate limit, Resend email with Romanian copy, `{ ok: true }` regardless of outcome (no account enumeration).
+- `GET /api/auth/verify` — atomic `consumed_at` update + find-or-create user + session + best-effort anonymous job claim from `job_access_*` cookies; redirect guarded against protocol-relative / backslash-escaped paths.
+- `GET /api/auth/google/start` — PKCE state+verifier persisted in `admin_oauth_state`, 302 to Google.
+- `GET /api/auth/google/callback` — one-shot DELETE RETURNING on state (prevents replay), 10-min TTL, email_verified + ADMIN_EMAILS allowlist re-check, audits every denial path.
+- `POST /api/admin/logout` — defensive `getAdminSession` + `revokeAdminSession` + audit row.
+
+**Extended:**
+- `app/server/utils/env.ts` — +5 required vars (`RESEND_API_KEY`, `EMAIL_FROM`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`).
+- `app/server/utils/email.ts` — single-instance Resend client, `sendEmail()` wrapper; never logs recipient or body.
+- `app/server/utils/google-oauth.ts` — `createPkce()` / `buildAuthorizeUrl()` / `exchangeCode()` / `fetchUserInfo()` (raw fetch, no SDK dep).
+- `.env.example` — new Resend + Google OAuth placeholders.
+
+**Phase 2 auth is complete.** Both auth groups fully on main (5/5 auth-user, 4/4 auth-admin).
+
+**Reports:** `jobs/phase2-nuxt/DONE-auth-{magic-link-request,magic-link-verify,google-start,google-callback,admin-logout}.md`
+
 ### `phase2-nuxt / auth-user + auth-admin` Wave 3 (A1 + A2) — merged to main
 
 **Merge commits:**
