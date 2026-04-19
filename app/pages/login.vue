@@ -77,6 +77,10 @@ async function verifyCode() {
         ...(nextPath.value ? { next: nextPath.value } : {}),
       },
     })
+    // Invalidate any cached useAsyncData('session') so the header refetches after
+    // login (without this, a header mounted before login stays showing 'Autentificare'
+    // on the next SPA navigation).
+    await refreshNuxtData('session')
     await navigateTo(res.redirectTo ?? '/account', { external: false })
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode

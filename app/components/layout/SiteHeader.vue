@@ -2,13 +2,16 @@
 import { User, LogOut } from 'lucide-vue-next'
 
 // Fetches the current session for header auth state. Always 200; email is null
-// when unauthenticated. useRequestFetch forwards the incoming cookie header on
-// SSR so the server-side call sees the user's session cookie (plain $fetch/useFetch
-// does NOT forward cookies between Nitro's internal route calls).
-const requestFetch = useRequestFetch()
+// when unauthenticated.
+//
+// Cookie-forwarding pattern: Nitro's internal $fetch does NOT forward the client's
+// cookies to its own API routes by default. On SSR we explicitly pull the incoming
+// Cookie header via useRequestHeaders and pass it down. On client, no forwarding
+// needed — the browser attaches cookies automatically.
+const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
 const { data: session, refresh: refreshSession } = await useAsyncData(
   'session',
-  () => requestFetch<{ email: string | null }>('/api/auth/session'),
+  () => $fetch<{ email: string | null }>('/api/auth/session', { headers }),
   { default: () => ({ email: null }) },
 )
 
