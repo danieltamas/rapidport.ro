@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { User, LogOut } from 'lucide-vue-next'
 
-// Fetches the current session for header auth state. Cached per-request in SSR,
-// re-fetched on client navigation. Always 200; email is null when unauthenticated.
-const { data: session, refresh: refreshSession } = await useFetch<{ email: string | null }>(
-  '/api/auth/session',
-  { key: 'session' },
+// Fetches the current session for header auth state. Always 200; email is null
+// when unauthenticated. useRequestFetch forwards the incoming cookie header on
+// SSR so the server-side call sees the user's session cookie (plain $fetch/useFetch
+// does NOT forward cookies between Nitro's internal route calls).
+const requestFetch = useRequestFetch()
+const { data: session, refresh: refreshSession } = await useAsyncData(
+  'session',
+  () => requestFetch<{ email: string | null }>('/api/auth/session'),
+  { default: () => ({ email: null }) },
 )
 
 const isLoggedIn = computed(() => Boolean(session.value?.email))
