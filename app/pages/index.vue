@@ -35,29 +35,29 @@ const pains = [
 ]
 
 const stats = [
-  { value: '498', caption: 'tabele WinMentor analizate per portare' },
+  { value: '498', caption: 'tabele analizate per portare, în orice direcție' },
   { value: '17.284', caption: 'înregistrări convertite în 3 minute' },
-  { value: '99,8%', caption: 'import în SAGA fără erori' },
+  { value: '99,8%', caption: 'import fără erori în software-ul destinație' },
 ]
 
 const steps = [
   {
     n: '01',
     icon: Upload,
-    title: 'Încărcați arhiva',
-    body: 'Exportați backup-ul companiei din WinMentor și îl urcați aici. Validăm structura și veți vedea raportul înainte să plătiți.',
+    title: 'Încărcați arhiva sursă',
+    body: 'Exportați backup-ul companiei din WinMentor sau SAGA și îl urcați aici. Detectăm automat direcția, validăm structura și veți vedea raportul înainte să plătiți.',
   },
   {
     n: '02',
     icon: Eye,
     title: 'Verificați maparea',
-    body: 'AI-ul mapează peste 800 de câmpuri automat. Aprobați doar mapările cu încredere scăzută — nicio înregistrare nu trece fără să știți.',
+    body: 'AI-ul mapează peste 800 de câmpuri automat, în orice direcție. Aprobați doar mapările cu încredere scăzută — nicio înregistrare nu trece fără să știți.',
   },
   {
     n: '03',
     icon: Download,
-    title: 'Descărcați pentru SAGA',
-    body: 'Primiți pachetul DBF + XML plus raport detaliat al conversiei. Deschideți Import Date în SAGA și cifrele sunt la locul lor.',
+    title: 'Descărcați pentru destinație',
+    body: 'Pentru SAGA primiți pachetul DBF + XML; pentru WinMentor primiți fișierele în formatul așteptat de Import Date. Raport detaliat al conversiei inclus.',
   },
 ]
 
@@ -123,28 +123,32 @@ const plans = [
 
 const faqs = [
   {
+    q: 'Funcționează în ambele sensuri, WinMentor ⇄ SAGA?',
+    a: 'Da. Încărcați arhiva sursă — detectăm automat dacă este WinMentor sau SAGA și producem fișierele în formatul așteptat de celălalt. Același flux, mapări, preț și raport, indiferent de direcție.',
+  },
+  {
     q: 'Datele mele sunt în siguranță?',
     a: 'Nu stocăm permanent conținutul fișierelor. Arhiva încărcată se șterge automat după 30 de zile. Emailurile sunt hash-uite în jurnale, CIF-urile redactate. Profilul de mapare este salvat fără datele companiei.',
   },
   {
-    q: 'Ce se întâmplă dacă SAGA respinge un fișier?',
-    a: 'Raportul conversiei identifică exact înregistrările problemă. Refacem conversia cu ajustări gratuit în primele 30 de zile. Dacă fișierele nu trec importul în SAGA, refund integral.',
+    q: 'Ce se întâmplă dacă software-ul destinație respinge un fișier?',
+    a: 'Raportul conversiei identifică exact înregistrările problemă. Refacem conversia cu ajustări gratuit în primele 30 de zile. Dacă fișierele nu trec importul (în SAGA sau în WinMentor), refund integral.',
   },
   {
-    q: 'Ce versiuni WinMentor sunt suportate?',
-    a: 'WinMentor 8.x și 9.x, testate pe peste 50 de companii reale. Pentru alte versiuni, trimite o arhivă de test înainte de plată.',
+    q: 'Ce versiuni sunt suportate?',
+    a: 'WinMentor 8.x și 9.x; SAGA C 3.0. Testate pe peste 50 de companii reale, în ambele direcții. Pentru alte versiuni, trimiteți o arhivă de test înainte de plată.',
   },
   {
-    q: 'Cât durează o migrare?',
+    q: 'Cât durează o portare?',
     a: 'Între 3 și 15 minute pentru cele mai multe cabinete. Bazele de date mari (peste 5 GB) pot ajunge la o oră. Vezi progresul în timp real pe pagina de status.',
   },
   {
-    q: 'Pot migra mai multe companii?',
-    a: 'Fiecare migrare se tarifează separat. Clienții cu peste 5 firme primesc preț de volum — scrie pe support@rapidport.ro.',
+    q: 'Pot porta mai multe companii?',
+    a: 'Fiecare portare se tarifează separat. Clienții cu peste 5 firme primesc preț de volum — scrieți pe support@rapidport.ro.',
   },
   {
     q: 'Ce este o „sincronizare delta"?',
-    a: 'După migrarea inițială pot apărea tranzacții noi în WinMentor. O sincronizare delta aduce DOAR aceste înregistrări noi în SAGA, fără să refacă toată conversia.',
+    a: 'După portarea inițială pot apărea tranzacții noi în software-ul sursă. O sincronizare delta aduce DOAR aceste înregistrări noi în software-ul destinație, fără să refacă toată conversia. Funcționează în ambele direcții.',
   },
 ]
 </script>
@@ -246,7 +250,11 @@ const faqs = [
                   </div>
                   <div>
                     <div class="text-sm font-semibold">Portare SC Exemplu SRL</div>
-                    <div class="text-xs text-muted-foreground">RO12345678 · WinMentor 9.2 → SAGA C 3.0</div>
+                    <div class="text-xs text-muted-foreground flex items-center gap-1.5">
+                      RO12345678 · WinMentor 9.2
+                      <ArrowLeftRight class="size-3" :stroke-width="2" />
+                      SAGA C 3.0
+                    </div>
                   </div>
                 </div>
                 <div class="flex items-center gap-1.5 text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-full">
