@@ -156,40 +156,8 @@ const faqs = [
 <template>
   <div class="bg-background text-foreground antialiased selection:bg-primary/25">
 
-    <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- TOP NAV — light, pill CTA, proportional type                        -->
-    <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <nav class="sticky top-0 z-50 bg-background/85 backdrop-blur-md border-b border-border">
-      <div class="mx-auto max-w-[1280px] px-6 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-10">
-          <NuxtLink to="/" class="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <span class="text-primary">■</span>
-            <span>Rapidport</span>
-          </NuxtLink>
-          <div class="hidden md:flex items-center gap-7 text-[15px] text-muted-foreground">
-            <a href="#cum" class="hover:text-foreground transition-colors">Cum funcționează</a>
-            <a href="#pret" class="hover:text-foreground transition-colors">Preț</a>
-            <a href="#intrebari" class="hover:text-foreground transition-colors">Întrebări</a>
-            <a href="mailto:support@rapidport.ro" class="hover:text-foreground transition-colors">Contact</a>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            class="hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium"
-            as="a"
-            href="/login"
-          >
-            Autentificare
-          </Button>
-          <Button class="rounded-full h-10 px-5 text-sm font-medium" as-child>
-            <NuxtLink to="/upload">
-              Începe portarea
-            </NuxtLink>
-          </Button>
-        </div>
-      </div>
-    </nav>
+    <!-- Shared site header handles auth state and renders consistent nav. -->
+    <LayoutSiteHeader />
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- HERO — light, pink/coral gradient wash top-right                    -->

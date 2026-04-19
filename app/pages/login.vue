@@ -10,11 +10,26 @@ useHead({
   htmlAttrs: { lang: 'ro' },
 })
 
+// If the user is already authenticated, skip the login flow and land them on
+// the account page (or the ?next= target if specified and safe). Runs on both
+// SSR and client — on SSR a 302 is issued; on client, navigateTo is called.
+const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const { data: existingSession } = await useAsyncData(
+  'session',
+  () => $fetch<{ email: string | null }>('/api/auth/session', { headers }),
+  { default: () => ({ email: null }) },
+)
+const routeEarly = useRoute()
+if (existingSession.value?.email) {
+  const rawNext = routeEarly.query.next
+  const next = typeof rawNext === 'string' && /^\/(?!\/)(?!\\)/.test(rawNext) ? rawNext : '/account'
+  await navigateTo(next, { replace: true })
+}
+
 type Step = 'email' | 'code'
 
-const route = useRoute()
 const nextPath = computed(() => {
-  const raw = route.query.next
+  const raw = routeEarly.query.next
   if (typeof raw !== 'string') return undefined
   if (!/^\/(?!\/)(?!\\)/.test(raw)) return undefined
   return raw
