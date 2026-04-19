@@ -221,7 +221,7 @@ grep -rn "from(jobs)" app/server/api/jobs/ --include='*.ts'
 - [ ] **`.env` is gitignored** — never committed
 - [ ] **`.env.example` contains placeholders only** — `STRIPE_SECRET_KEY=sk_test_...` with no real value
 - [ ] **`gitleaks` pre-commit hook** enforced — scan finds zero secrets in history
-- [ ] **Logging never includes**: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SMARTBILL_TOKEN, ANTHROPIC_API_KEY, RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET, CSRF_SECRET, EMAIL_HASH_SALT, magic link tokens, session IDs
+- [ ] **Logging never includes**: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SMARTBILL_API_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_SECRET, SESSION_SECRET, CSRF_SECRET, EMAIL_HASH_SALT, magic link tokens, session IDs
 - [ ] **Error messages** don't leak env variable names or values to users
 
 ### How to scan

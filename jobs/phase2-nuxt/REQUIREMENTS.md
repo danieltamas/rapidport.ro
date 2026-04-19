@@ -78,8 +78,7 @@ Validated at boot via Zod in `app/server/utils/env.ts` (`bootstrap-env` task). M
 | `STRIPE_SECRET_KEY` | yes | `sk_live_...` / `sk_test_...` | Stripe SDK |
 | `STRIPE_WEBHOOK_SECRET` | yes | `whsec_...` | Stripe webhook signature verify |
 | `STRIPE_PUBLISHABLE_KEY` | yes | `pk_live_...` / `pk_test_...` | exposed to client for Stripe Elements |
-| `SMARTBILL_USERNAME` | yes | — | SmartBill REST auth |
-| `SMARTBILL_TOKEN` | yes | — | SmartBill REST auth |
+| `SMARTBILL_API_KEY` | yes | — | SmartBill REST auth (single API key) |
 | `SMARTBILL_SERIES` | yes | TBD per SPEC Q#3 | invoice numbering |
 | `ANTHROPIC_API_KEY` | yes | `sk-ant-...` | Haiku mapping (shared with worker) |
 | `RESEND_API_KEY` | yes | `re_...` | transactional email |
