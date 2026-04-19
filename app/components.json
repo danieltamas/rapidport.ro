@@ -12,6 +12,5 @@
     "utils": "~/lib/utils",
     "ui": "~/components/ui",
     "composables": "~/composables"
-  },
-  "framework": "nuxt"
+  }
 }

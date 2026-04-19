@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
+import { PinInput, PinInputGroup, PinInputSlot } from '~/components/ui/pin-input'
 import { ArrowLeft } from 'lucide-vue-next'
 
 useHead({
@@ -21,13 +22,14 @@ const nextPath = computed(() => {
 
 const step = ref<Step>('email')
 const email = ref<string>('')
-const code = ref<string>('')
+const pin = ref<number[]>([])
 const submitting = ref(false)
 const errorMsg = ref<string | null>(null)
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const isValidEmail = computed(() => EMAIL_RE.test(String(email.value).trim()))
-const isValidCode = computed(() => /^\d{6}$/.test(String(code.value).trim()))
+const code = computed(() => pin.value.map((n) => String(n)).join(''))
+const isValidCode = computed(() => pin.value.length === 6 && /^\d{6}$/.test(code.value))
 
 function readCsrf(): string {
   if (import.meta.server) return ''
@@ -46,9 +48,11 @@ async function requestCode() {
       body: { email: email.value.trim().toLowerCase() },
     })
     step.value = 'code'
-    // Focus the code input on next tick
+    pin.value = []
+    // Focus the first pin slot on next tick
     await nextTick()
-    document.getElementById('code')?.focus()
+    const firstSlot = document.querySelector<HTMLInputElement>('[data-pin-slot] input, [data-pin-input]')
+    firstSlot?.focus()
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode
     errorMsg.value = status === 429
@@ -80,7 +84,10 @@ async function verifyCode() {
     errorMsg.value = status === 400
       ? (message || 'Cod invalid sau expirat.')
       : 'Eroare la verificare. Încercați din nou.'
-    code.value = ''
+    pin.value = []
+    // Refocus first slot for retry
+    await nextTick()
+    document.querySelector<HTMLInputElement>('[data-pin-slot] input, [data-pin-input]')?.focus()
   } finally {
     submitting.value = false
   }
@@ -88,14 +95,17 @@ async function verifyCode() {
 
 function backToEmail() {
   step.value = 'email'
-  code.value = ''
+  pin.value = []
   errorMsg.value = null
 }
 
-function onCodeInput(e: Event) {
-  // Sanitize: digits only, cap at 6.
-  const raw = (e.target as HTMLInputElement).value
-  code.value = raw.replace(/\D/g, '').slice(0, 6)
+// Reka UI emits 'complete' once all slots are filled. Auto-verify kicks off
+// immediately — the user doesn't have to hit the button. Watcher guards against
+// partial state (e.g. after an error when pin is reset).
+function onPinComplete() {
+  if (isValidCode.value && !submitting.value) {
+    verifyCode()
+  }
 }
 </script>
 
@@ -168,20 +178,26 @@ function onCodeInput(e: Event) {
           </p>
 
           <form class="space-y-6" @submit.prevent="verifyCode">
-            <div class="space-y-2.5">
-              <label for="code" class="block text-sm font-medium">Cod de 6 cifre</label>
-              <input
-                id="code"
-                :value="code"
-                type="text"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                required
-                maxlength="6"
-                placeholder="000000"
-                class="flex h-16 w-full rounded-md border border-input bg-background px-3 text-center text-3xl font-mono tracking-[0.4em] font-semibold ring-offset-background placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                @input="onCodeInput"
+            <div class="space-y-3">
+              <label class="block text-sm font-medium">Cod de 6 cifre</label>
+              <PinInput
+                v-model="pin"
+                type="number"
+                :otp="true"
+                :disabled="submitting"
+                class="gap-2 justify-between"
+                @complete="onPinComplete"
               >
+                <PinInputGroup class="gap-2">
+                  <PinInputSlot
+                    v-for="i in 6"
+                    :key="i - 1"
+                    :index="i - 1"
+                    data-pin-slot
+                    class="h-14 w-full rounded-md border border-input bg-background text-2xl font-mono font-semibold tracking-tight focus:ring-2 focus:ring-ring focus:border-ring transition-all"
+                  />
+                </PinInputGroup>
+              </PinInput>
             </div>
             <Button
               type="submit"
