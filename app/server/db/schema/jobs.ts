@@ -1,17 +1,40 @@
-import { pgTable, uuid, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, bigint, jsonb, timestamp, index, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import { users } from './users';
+import { mappingProfiles } from './mapping_profiles';
 
-// Minimal jobs table — worker-facing columns only.
-// Phase 2 schema-jobs-payments task will add: userId, anonymousAccessToken,
-// uploadFilename, billingEmail, stripePriceId, stripePaidAt, etc. via ALTER TABLE ADD COLUMN.
-export const jobs = pgTable('jobs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  status: text('status').notNull(),
-  progressStage: text('progress_stage'),
-  progressPct: integer('progress_pct').default(0),
-  workerVersion: text('worker_version'),
-  canonicalSchemaVersion: text('canonical_schema_version'),
-  deltaSyncsUsed: integer('delta_syncs_used').default(0),
-  deltaSyncsAllowed: integer('delta_syncs_allowed').default(3),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+// Phase 1 columns (id, status, progress*, *Version, deltaSync*, createdAt, updatedAt)
+// are preserved byte-for-byte. Phase 2 adds user linkage, anonymous access token,
+// source/target software, upload metadata, discovery + mapping result blobs, mapping
+// profile FK, billing email, and 30-day expiry.
+export const jobs = pgTable(
+  'jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: text('status').notNull(),
+    progressStage: text('progress_stage'),
+    progressPct: integer('progress_pct').default(0),
+    workerVersion: text('worker_version'),
+    canonicalSchemaVersion: text('canonical_schema_version'),
+    deltaSyncsUsed: integer('delta_syncs_used').default(0),
+    deltaSyncsAllowed: integer('delta_syncs_allowed').default(3),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    // Phase 2 additions
+    userId: uuid('user_id').references(() => users.id),
+    anonymousAccessToken: text('anonymous_access_token').notNull(),
+    sourceSoftware: text('source_software').notNull(),
+    targetSoftware: text('target_software').notNull(),
+    uploadFilename: text('upload_filename'),
+    uploadSize: bigint('upload_size', { mode: 'number' }),
+    discoveryResult: jsonb('discovery_result'),
+    mappingResult: jsonb('mapping_result'),
+    mappingProfileId: uuid('mapping_profile_id').references((): AnyPgColumn => mappingProfiles.id),
+    billingEmail: text('billing_email'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+  },
+  (t) => ({
+    userIdIdx: index().on(t.userId),
+    anonymousAccessTokenIdx: index().on(t.anonymousAccessToken),
+    expiresAtIdx: index().on(t.expiresAt),
+  }),
+);
