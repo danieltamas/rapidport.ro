@@ -9,17 +9,36 @@ useHead({
   htmlAttrs: { lang: 'ro' },
 })
 
-const email = ref('')
+const email = ref<string>('')
 const sent = ref(false)
 const submitting = ref(false)
+const errorMsg = ref<string | null>(null)
+
+function readCsrf(): string {
+  if (import.meta.server) return ''
+  const m = document.cookie.match(/(?:^|;\s*)rp_csrf=([^;]+)/)
+  return m && m[1] ? decodeURIComponent(m[1]) : ''
+}
 
 async function submit() {
   if (!email.value) return
   submitting.value = true
-  // TODO: POST /api/auth/magic-link (Wave 4 backend)
-  await new Promise(r => setTimeout(r, 400))
-  submitting.value = false
-  sent.value = true
+  errorMsg.value = null
+  try {
+    await $fetch('/api/auth/magic-link', {
+      method: 'POST',
+      headers: { 'x-csrf-token': readCsrf() },
+      body: { email: String(email.value) },
+    })
+    sent.value = true
+  } catch (err: unknown) {
+    const status = (err as { statusCode?: number })?.statusCode
+    errorMsg.value = status === 429
+      ? 'Prea multe cereri. Încercați peste o oră.'
+      : 'Nu am putut trimite linkul. Încercați din nou în câteva momente.'
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -59,6 +78,9 @@ async function submit() {
               <span v-if="!submitting">Trimite link de autentificare</span>
               <span v-else>Se trimite…</span>
             </Button>
+            <p v-if="errorMsg" class="text-sm text-destructive text-center" role="alert">
+              {{ errorMsg }}
+            </p>
           </form>
 
           <p class="mt-10 text-xs text-muted-foreground text-center leading-relaxed">
