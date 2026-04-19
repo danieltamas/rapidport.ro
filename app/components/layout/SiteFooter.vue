@@ -45,7 +45,7 @@ function openCookiePrefs() {
                 support@rapidport.ro
               </a>
             </li>
-            <li><NuxtLink to="/auth/login" class="hover:text-primary transition-colors">Autentificare</NuxtLink></li>
+            <li><NuxtLink to="/login" class="hover:text-primary transition-colors">Autentificare</NuxtLink></li>
           </ul>
         </div>
         <div class="md:col-span-2">

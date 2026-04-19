@@ -174,7 +174,7 @@ const faqs = [
             variant="ghost"
             class="hidden sm:inline-flex rounded-full h-10 px-4 text-sm font-medium"
             as="a"
-            href="/auth/login"
+            href="/login"
           >
             Autentificare
           </Button>

@@ -178,7 +178,7 @@ Every state-changing request (POST, PUT, PATCH, DELETE) is CSRF-protected:
 **Optional magic link:**
 - User requests login via email → `POST /api/auth/magic-link`
 - Server generates single-use, 15-min-expiring token (signed, stored hashed in `magic_link_tokens`)
-- Email sent via Resend with `/auth/verify?token=xyz`
+- Email sent via Resend with `/api/auth/verify?token=xyz` (API consumes the token and redirects to `/`)
 - Consumption creates session: `HttpOnly=true, Secure=true, SameSite=Lax, Max-Age=30d`
 - Session stored server-side in `sessions` table (not JWT — enables revocation)
 - Anonymous jobs in same browser auto-claimed to account on login
@@ -344,8 +344,8 @@ No feature ships without:
 1. User clicks "Log in to save profiles"
 2. Enters email → `POST /api/auth/magic-link` (rate limited)
 3. Signed single-use token (15 min TTL) stored hashed
-4. Email sent with `/auth/verify?token=xyz`
-5. `GET /auth/verify` → validates, creates session, sets HttpOnly cookie
+4. Email sent with `/api/auth/verify?token=xyz` (API handler, not a page)
+5. `GET /api/auth/verify` → validates, creates session, sets HttpOnly cookie, 303 → `/`
 6. Anonymous jobs in same browser auto-claimed to account
 7. `/profiles` page accessible
 

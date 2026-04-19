@@ -579,9 +579,8 @@ app/                                ← Nuxt 3 root
 │   │   └── result.vue
 │   ├── profiles/index.vue
 │   ├── account/security.vue
-│   ├── auth/
-│   │   ├── login.vue
-│   │   └── verify.vue
+│   ├── login.vue                   ← Magic-link request form (flat route: /login)
+│   ├── verify.vue                  ← Magic-link landing (flat route: /verify)
 │   ├── legal/
 │   │   ├── terms.vue
 │   │   ├── privacy.vue

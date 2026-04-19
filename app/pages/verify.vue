@@ -55,7 +55,7 @@ onMounted(async () => {
           <h1 class="text-2xl font-bold tracking-tight mb-2">Linkul a expirat.</h1>
           <p class="text-muted-foreground mb-8">Linkurile sunt valabile 15 minute. Cereți unul nou.</p>
           <Button class="rounded-full h-12 px-6 text-base font-medium" as-child>
-            <NuxtLink to="/auth/login">Trimite alt link</NuxtLink>
+            <NuxtLink to="/login">Trimite alt link</NuxtLink>
           </Button>
         </div>
 
@@ -67,7 +67,7 @@ onMounted(async () => {
           <p class="text-muted-foreground mb-8">Linkul nu poate fi folosit. Cereți unul nou sau contactați-ne.</p>
           <div class="flex flex-col gap-2">
             <Button class="rounded-full h-12 px-6 text-base font-medium" as-child>
-              <NuxtLink to="/auth/login">Trimite alt link</NuxtLink>
+              <NuxtLink to="/login">Trimite alt link</NuxtLink>
             </Button>
             <Button variant="ghost" class="rounded-full h-12 px-6 text-base font-medium" as-child>
               <a href="mailto:support@rapidport.ro">Contactează suportul</a>

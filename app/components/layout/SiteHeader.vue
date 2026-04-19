@@ -18,7 +18,7 @@
       </div>
       <div class="flex items-center gap-2">
         <a
-          href="/auth/login"
+          href="/login"
           class="hidden sm:inline-flex items-center justify-center rounded-full h-10 px-4 text-sm font-medium cursor-pointer hover:bg-accent transition-colors"
         >
           Autentificare

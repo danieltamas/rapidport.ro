@@ -228,7 +228,7 @@ Parallel. Consumes `api-jobs` + `auth-user`.
 | 3 | `pages-job-status-discovery-result` | `...-pages-job-status-discovery-result` | critical | `/job/[id]/status`, `/job/[id]/discovery`, `/job/[id]/result` — mostly passive, SSE progress |
 | 4 | `pages-job-mapping` | `...-pages-job-mapping` | critical | `/job/[id]/mapping` — desktop-only RO banner on <1024px, interactive mapping UI, submit via PATCH |
 | 5 | `pages-job-pay` | `...-pages-job-pay` | critical | `/job/[id]/pay` — Stripe Elements, billing info form (PJ/PF), confirmation |
-| 6 | `pages-profiles-account-auth` | `...-pages-profiles-account-auth` | high | `/profiles`, `/account/security`, `/auth/login`, `/auth/verify` |
+| 6 | `pages-profiles-account-auth` | `...-pages-profiles-account-auth` | high | `/profiles`, `/account/security`, `/login`, `/verify` (flat user-facing routes; API lives under `/api/auth/*`) |
 | 7 | `pages-legal` | `...-pages-legal` | critical | `/legal/terms`, `/legal/privacy`, `/legal/dpa`, `/legal/refund` — light mode, long-form readable layout |
 
 ---
