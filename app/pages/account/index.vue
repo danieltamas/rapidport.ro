@@ -43,7 +43,7 @@ const profiles = [
     <LayoutSiteHeader />
 
     <main class="flex-1">
-      <section class="border-b border-border">
+      <section>
         <div class="mx-auto max-w-[1280px] px-6 py-14">
           <div class="flex flex-wrap items-end justify-between gap-4 mb-10">
             <div>
