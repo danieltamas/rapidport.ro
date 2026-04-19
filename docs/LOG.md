@@ -8,6 +8,31 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-19
 
+### `phase2-nuxt / auth-user + auth-admin` Wave 3 (A1 + A2) — merged to main
+
+**Merge commits:**
+- `8d5ea44` — auth-user A1 (session util + anonymous token)
+- `fb5f067` — auth-admin A1 (session trio + ADMIN_EMAILS env)
+- `6ee8d9e` — auth-user A2 (assertJobAccess gate)
+
+**Summary:** Four of nine auth tasks landed. Shape: A1 ran three utility workers in parallel (`auth-session-util`, `auth-anonymous-token`, `auth-admin-session`), all file-disjoint. A2 ran `auth-job-access` solo after A1 was on main (composes the three utilities into the three-way gate per CODING.md §13.8).
+
+**New files:**
+- `app/server/utils/auth-user.ts` — user session lifecycle (SHA-256 hash in DB, plaintext in cookie, 30d TTL).
+- `app/server/utils/anonymous-token.ts` — per-job scoped cookie (`job_access_${jobId}`, SameSite=Strict), constant-time verify.
+- `app/server/utils/auth-admin.ts` — admin session lifecycle (8h TTL, IP-hash bound, cookie `admin_session`).
+- `app/server/utils/assert-admin-session.ts` — IP drift → revoke + 401; allowlist re-check per request → 403.
+- `app/server/utils/assert-job-access.ts` — three-way check: admin (with `admin_audit_log` insert) → user-owner → anonymous token → default-deny 403. 404 on missing job before auth probing.
+- `app/server/middleware/admin-auth.ts` — guards `/admin/*` and `/api/admin/*` (exempts `/admin/login` + `/api/auth/google/*`).
+
+**Extended:**
+- `app/server/utils/env.ts` — +`ADMIN_EMAILS` (comma-split → lowercased email array, dev-noop default, prod must configure).
+- `.env.example` — commented `ADMIN_EMAILS` template.
+
+**Remaining auth tasks:** `auth-magic-link-request`, `auth-magic-link-verify` (user), `auth-google-start`, `auth-google-callback`, `auth-admin-logout` (admin).
+
+**Reports:** `jobs/phase2-nuxt/DONE-auth-{session-util,anonymous-token,admin-session,job-access}.md`
+
 ### `phase2-nuxt / schema` group Wave 2 — merged to main
 
 **Merge commit:** `528df46` (group → main, --no-ff)

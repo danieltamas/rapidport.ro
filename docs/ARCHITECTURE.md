@@ -67,11 +67,17 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   └── metrics.ts         # admin dashboard time-series (jobs/hour, payment success, etc.)
 │   │   │   └── client.ts              # pg Pool (max 20) + Drizzle instance, exports `db` and `pool`
 │   │   ├── middleware/                # Nitro global middleware (alphabetical load order)
+│   │   │   ├── admin-auth.ts          # /admin/* + /api/admin/* guard; calls assertAdminSession
 │   │   │   ├── csrf.ts                # double-submit cookie (rp_csrf ↔ x-csrf-token), webhook exempt
 │   │   │   ├── rate-limit.ts          # sliding window on rate_limits table; fail-closed for admin login
 │   │   │   └── security-headers.ts    # HSTS, strict CSP (no unsafe-*), X-Frame, Referrer, Permissions-Policy
 │   │   ├── utils/
-│   │   │   └── env.ts                 # Zod EnvSchema; the only reader of process.env in app code
+│   │   │   ├── env.ts                 # Zod EnvSchema (now with ADMIN_EMAILS); only reader of process.env
+│   │   │   ├── auth-user.ts           # user session lifecycle — SHA-256 hashed tokens, 30d TTL
+│   │   │   ├── auth-admin.ts          # admin session lifecycle — 8h TTL, IP-hash bound, 'admin_session' cookie
+│   │   │   ├── anonymous-token.ts     # per-job access token — cookie job_access_${id}, SameSite Strict
+│   │   │   ├── assert-admin-session.ts # IP drift → revoke+401; allowlist miss → 403
+│   │   │   └── assert-job-access.ts   # three-way gate: admin (+audit) → owner → anon token → 403
 │   │   └── plugins/
 │   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
