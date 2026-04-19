@@ -1,104 +1,126 @@
-// Route: POST /api/auth/magic-link
-// Issues a magic-link email. Plaintext token is emailed; only the SHA-256 hash is
-// persisted. Rate limit: 5 requests / hour / email, fail-closed per CODING.md §13.6.
-// Always responds `{ ok: true }` to prevent account enumeration.
-import { randomBytes, createHash } from 'node:crypto';
-import { and, eq, gt, sql } from 'drizzle-orm';
+// POST /api/auth/magic-link — issues a 6-digit authentication code emailed to the user.
+// The name 'magic-link' is historical; the flow is code-based now to avoid
+// corporate email-gateway link rewriting (Safe Links, Proofpoint) which prefetch URLs
+// and consume single-use tokens before the user clicks.
+//
+// Security:
+// - SPEC §S.3 magic-link semantics: single-use, 15-min TTL, stored SHA-256-hashed.
+// - SPEC §S.10 rate limit: 5/hour per email — fail-closed per CODING.md §13.6.
+// - Always returns { ok: true } so a caller cannot enumerate registered emails.
+// - No PII in logs.
+import { createHash, randomInt } from 'node:crypto';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
+import {
+  createError,
+  defineEventHandler,
+  getRequestIP,
+  readValidatedBody,
+  setResponseHeader,
+} from 'h3';
 import { z } from 'zod';
 import { db } from '../../db/client';
 import { magicLinkTokens } from '../../db/schema';
-import { env } from '../../utils/env';
 import { sendEmail } from '../../utils/email';
 
+const RATE_LIMIT_PER_HOUR = 5;
+const CODE_TTL_MS = 15 * 60 * 1000;
+
 const BodySchema = z.object({
-  email: z.string().email().transform((s) => s.trim().toLowerCase()),
+  email: z.string().email().transform((v) => v.trim().toLowerCase()),
 });
 
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+function sha256Hex(v: string): string {
+  return createHash('sha256').update(v).digest('hex');
+}
+
+function generateCode(): string {
+  // 000000–999999 uniform; zero-padded to 6 digits for display.
+  return randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+function renderEmail(code: string): { html: string; text: string } {
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #0A0A0A; max-width: 440px; margin: 0 auto;">
+      <p style="font-size: 16px; line-height: 1.5;">Bună,</p>
+      <p style="font-size: 16px; line-height: 1.5;">Folosiți acest cod pentru a vă autentifica pe Rapidport:</p>
+      <p style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 36px; font-weight: 600; letter-spacing: 8px; background: #F5F5F5; padding: 16px 24px; border-radius: 8px; text-align: center; margin: 24px 0;">${code}</p>
+      <p style="font-size: 14px; line-height: 1.5; color: #666;">Codul este valabil 15 minute și poate fi folosit o singură dată.</p>
+      <p style="font-size: 14px; line-height: 1.5; color: #666;">Dacă nu ați cerut acest cod, ignorați acest email.</p>
+      <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 32px 0;">
+      <p style="font-size: 12px; color: #999;">Rapidport — migrare WinMentor → SAGA</p>
+    </div>
+  `;
+  const text = `Codul de autentificare Rapidport: ${code}\n\nValabil 15 minute, o singură folosință.\n\nDacă nu ați cerut acest cod, ignorați acest email.`;
+  return { html, text };
+}
 
 export default defineEventHandler(async (event) => {
   const { email } = await readValidatedBody(event, BodySchema.parse);
 
-  // Rate limit check — fail-closed: any DB error returns 503 with Retry-After.
   try {
-    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
-    const rows = await db
+    const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(magicLinkTokens)
-      .where(and(eq(magicLinkTokens.email, email), gt(magicLinkTokens.createdAt, windowStart)));
-    const recentCount = rows[0]?.count ?? 0;
-    if (recentCount >= RATE_LIMIT_MAX) {
+      .where(
+        and(
+          eq(magicLinkTokens.email, email),
+          sql`${magicLinkTokens.createdAt} > now() - interval '1 hour'`,
+        ),
+      );
+    const used = result[0]?.count ?? 0;
+    if (used >= RATE_LIMIT_PER_HOUR) {
+      setResponseHeader(event, 'Retry-After', 3600);
       throw createError({ statusCode: 429, statusMessage: 'Too Many Requests' });
     }
   } catch (err: unknown) {
-    // Re-throw our own 429. Everything else is a store-unavailable scenario.
-    if (err && typeof err === 'object' && 'statusCode' in err && (err as { statusCode?: number }).statusCode === 429) {
-      throw err;
-    }
+    if (err && typeof err === 'object' && 'statusCode' in err) throw err;
     setResponseHeader(event, 'Retry-After', 5);
     throw createError({ statusCode: 503, statusMessage: 'Service Unavailable' });
   }
-
-  // Issue token: plaintext emailed, hash stored.
-  const plaintextToken = randomBytes(32).toString('hex');
-  const tokenHash = createHash('sha256').update(plaintextToken).digest('hex');
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
-  const ipAddress = getRequestIP(event, { xForwardedFor: true }) ?? null;
 
   try {
-    await db.insert(magicLinkTokens).values({ email, tokenHash, expiresAt, ipAddress });
+    await db
+      .update(magicLinkTokens)
+      .set({ consumedAt: new Date() })
+      .where(
+        and(
+          eq(magicLinkTokens.email, email),
+          isNull(magicLinkTokens.consumedAt),
+          gt(magicLinkTokens.expiresAt, new Date()),
+        ),
+      );
   } catch {
-    // Insertion failure is the only place we may surface an error to the client,
-    // because without persistence the link would be unusable. Keep message generic.
+    // Not fatal — TTL handles it.
+  }
+
+  const code = generateCode();
+  const tokenHash = sha256Hex(code);
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+  const ipAddress = getRequestIP(event, { xForwardedFor: true }) ?? undefined;
+
+  try {
+    await db.insert(magicLinkTokens).values({
+      email,
+      tokenHash,
+      expiresAt,
+      ipAddress,
+    });
+  } catch {
     setResponseHeader(event, 'Retry-After', 5);
     throw createError({ statusCode: 503, statusMessage: 'Service Unavailable' });
   }
 
-  const verifyUrl = `${env.APP_URL}/api/auth/verify?token=${plaintextToken}`;
-
-  const result = await sendEmail({
-    to: email,
-    subject: 'Autentifică-te pe Rapidport',
-    html: renderHtml(verifyUrl),
-    text: renderText(verifyUrl),
-  });
-
-  if ('error' in result) {
-    // Do not leak the failure to the caller (would enable enumeration / probing).
-    // `sendEmail` already logged the provider error name with no PII.
-    console.warn('magic_link_issued', { delivery: 'failed' });
-  } else {
-    console.info('magic_link_issued', { delivery: 'sent' });
+  const { html, text } = renderEmail(code);
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Codul dvs. de autentificare Rapidport',
+      html,
+      text,
+    });
+  } catch {
+    console.warn('magic_link_email_send_failed');
   }
 
-  return { ok: true as const };
+  return { ok: true };
 });
-
-// Email body helpers — Romanian user-facing copy. Kept inline per task spec
-// (dedicated templating lives in the separate email-templates task).
-function renderHtml(verifyUrl: string): string {
-  return `<!doctype html>
-<html lang="ro"><body style="font-family:Inter,Arial,sans-serif;color:#111;background:#fff;padding:24px;">
-<h1 style="font-size:20px;margin:0 0 16px;">Autentifică-te pe Rapidport</h1>
-<p style="margin:0 0 16px;">Apasă butonul de mai jos pentru a te conecta. Link-ul este valabil 15 minute și poate fi folosit o singură dată.</p>
-<p style="margin:0 0 24px;">
-  <a href="${verifyUrl}" style="display:inline-block;background:#C72E49;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Intră în cont</a>
-</p>
-<p style="margin:0 0 8px;font-size:13px;color:#555;">Dacă butonul nu funcționează, copiază link-ul în browser:</p>
-<p style="margin:0 0 24px;font-size:13px;word-break:break-all;"><a href="${verifyUrl}">${verifyUrl}</a></p>
-<p style="margin:0;font-size:12px;color:#888;">Dacă nu ai solicitat această autentificare, ignoră acest email.</p>
-</body></html>`;
-}
-
-function renderText(verifyUrl: string): string {
-  return `Autentifică-te pe Rapidport
-
-Folosește link-ul de mai jos pentru a te conecta. Este valabil 15 minute și poate fi folosit o singură dată.
-
-${verifyUrl}
-
-Dacă nu ai solicitat această autentificare, ignoră acest email.
-`;
-}
