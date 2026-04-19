@@ -10,7 +10,7 @@ Pre-production. Pre-launch.
 
 - `phase0-discovery` — **done, merged to main** (2026-04-18).
 - `phase1-worker` — **done, merged to main** (2026-04-19). Python worker (21 modules, 7,409 LoC) on main; gate passed with deferrals documented in `jobs/phase1-worker/GATE.md`.
-- `phase2-nuxt` — Wave 1 merged (2026-04-19): `security-baseline` group (3/3) + `schema-users-sessions` (first of 6 `schema-*` tasks). Bootstrap group already on main (7/7, merged 2026-04-17).
+- `phase2-nuxt` — Waves 1 + 2 merged (2026-04-19): `security-baseline` group (3/3), `schema` group (6/6). Bootstrap group already on main (7/7, merged 2026-04-17). **13 of 17 Phase 2 groups remain** (`auth-user`, `auth-admin`, `api-jobs`, `api-webhooks`, `api-admin`, `pages-public`, `pages-admin`, `gdpr-cleanup`, `email-guide`, `i18n`, `observability`, `infra`, `ci-tests`, `gate`).
 
 **UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
 
@@ -55,7 +55,16 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── ai_usage.ts        # per-call Anthropic token + cost tracking
 │   │   │   │   ├── users.ts           # users — email (unique) + email_hash (indexed) + deleted_at soft-delete
 │   │   │   │   ├── sessions.ts        # user sessions — token_hash (SHA-256), user_id FK cascade, no IP bind
-│   │   │   │   └── magic_link_tokens.ts  # hashed single-use tokens — 15-min TTL, email+expires_at index
+│   │   │   │   ├── magic_link_tokens.ts  # hashed single-use tokens — 15-min TTL, email+expires_at index
+│   │   │   │   ├── admin_sessions.ts  # admin sessions — email, ip_hash (IP-bound), 8h TTL
+│   │   │   │   ├── admin_oauth_state.ts  # PKCE state+verifier — 10-min TTL (cron-pruned)
+│   │   │   │   ├── payments.ts        # Stripe payment + SmartBill invoice records, refund tracking
+│   │   │   │   ├── stripe_events.ts   # Stripe webhook idempotency dedup by event ID
+│   │   │   │   ├── mapping_profiles.ts  # saved mapping rule sets — user_id FK, isPublic, adoptionCount
+│   │   │   │   ├── audit_log.ts       # user-facing audit — append-only, anonymized on GDPR delete
+│   │   │   │   ├── admin_audit_log.ts # every admin action — append-only, NEVER purged
+│   │   │   │   ├── rate_limits.ts     # sliding-window state for middleware/rate-limit.ts
+│   │   │   │   └── metrics.ts         # admin dashboard time-series (jobs/hour, payment success, etc.)
 │   │   │   └── client.ts              # pg Pool (max 20) + Drizzle instance, exports `db` and `pool`
 │   │   ├── middleware/                # Nitro global middleware (alphabetical load order)
 │   │   │   ├── csrf.ts                # double-submit cookie (rp_csrf ↔ x-csrf-token), webhook exempt
@@ -67,8 +76,9 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
 │   ├── drizzle/
-│   │   ├── 0000_steady_malcolm_colcord.sql   # baseline migration — jobs, mapping_cache, ai_usage
-│   │   ├── 0001_nebulous_malcolm_colcord.sql # schema-users-sessions — users, sessions, magic_link_tokens
+│   │   ├── 0000_steady_malcolm_colcord.sql   # baseline — jobs (minimal), mapping_cache, ai_usage
+│   │   ├── 0001_nebulous_malcolm_colcord.sql # Wave 1 — users, sessions, magic_link_tokens
+│   │   ├── 0002_bouncy_star_brand.sql        # Wave 2 — 9 new tables + jobs ALTER + FKs
 │   │   └── meta/                      # drizzle-kit journal + snapshot
 │   └── .nvmrc                         # Node 22
 

@@ -8,6 +8,30 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-19
 
+### `phase2-nuxt / schema` group Wave 2 — merged to main
+
+**Merge commit:** `528df46` (group → main, --no-ff)
+
+**Task commits (squashed):**
+- `7df4131` — `feat(db): admin_sessions + admin_oauth_state schema sub-files`
+- `fc677b7` — `feat(db): extend jobs + add payments + stripe_events`
+- `a354dfa` — `feat(db): mapping_profiles schema sub-file`
+- `a7ccfdb` — `feat(db): audit_log + admin_audit_log schema sub-files`
+- `b5dfa99` — `feat(db): rate_limits + metrics schema sub-files`
+- `3a46e66` — `feat(db): consolidate Wave 2 schema — barrel exports + migration 0002` (orchestrator)
+
+**Summary:** 5 parallel schema workers each added their own sub-files under `app/server/db/schema/` — no worker touched the barrel or ran `db:generate` (file-disjoint by design). Orchestrator then appended 9 re-export lines to `schema.ts`, wired the `jobs.mappingProfileId` FK to `mappingProfiles.id` (deferred from the `schema-jobs-payments` worker with a forward-reference stub), and ran `npm run db:generate` once to produce `app/drizzle/0002_bouncy_star_brand.sql` covering every Wave 2 table + ALTER.
+
+**New tables:** `admin_sessions`, `admin_oauth_state`, `payments`, `stripe_events`, `mapping_profiles`, `audit_log`, `admin_audit_log`, `rate_limits`, `metrics`.
+
+**Extended:** `jobs` gets 11 new columns (userId FK, anonymousAccessToken, sourceSoftware, targetSoftware, uploadFilename, uploadSize, discoveryResult, mappingResult, mappingProfileId FK, billingEmail, expiresAt) + 3 indexes.
+
+**Migration 0002:** 9 CREATE TABLE, 11 ALTER jobs ADD COLUMN, 5 FKs, many indexes. Not yet applied — operator task.
+
+**Downstream unblocks:** `auth-user` (sessions/magic_link_tokens/users), `auth-admin` (admin_sessions, admin_oauth_state, admin_audit_log), `api-jobs-*` (extended jobs + payments), `api-webhooks` (stripe_events), `api-admin-*` (admin_audit_log, metrics), `pages-mapping` (mapping_profiles + save/load carry-forward).
+
+**Reports:** `jobs/phase2-nuxt/DONE-schema-{admin,jobs-payments,profiles,audit,support}.md`
+
 ### `phase2-nuxt / security-baseline` group — merged to main
 
 **Merge commit:** `6f475c3` (group → main, --no-ff)
