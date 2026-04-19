@@ -10,6 +10,8 @@ const { data: session, refresh: refreshSession } = await useFetch<{ email: strin
 
 const isLoggedIn = computed(() => Boolean(session.value?.email))
 const menuOpen = ref(false)
+const logoutConfirmOpen = ref(false)
+const loggingOut = ref(false)
 
 function readCsrf(): string {
   if (import.meta.server) return ''
@@ -17,7 +19,13 @@ function readCsrf(): string {
   return m && m[1] ? decodeURIComponent(m[1]) : ''
 }
 
-async function logout() {
+function openLogoutConfirm() {
+  menuOpen.value = false
+  logoutConfirmOpen.value = true
+}
+
+async function performLogout() {
+  loggingOut.value = true
   try {
     await $fetch('/api/auth/session', {
       method: 'DELETE',
@@ -26,7 +34,8 @@ async function logout() {
   } catch {
     // Even if the server call fails, drop the local state so the UI reflects intent.
   }
-  menuOpen.value = false
+  logoutConfirmOpen.value = false
+  loggingOut.value = false
   await refreshSession()
   await navigateTo('/', { external: false })
 }
@@ -122,7 +131,7 @@ onMounted(() => {
               <button
                 type="button"
                 class="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors border-t border-border cursor-pointer"
-                @click="logout"
+                @click="openLogoutConfirm"
               >
                 <LogOut class="size-4" :stroke-width="2" />
                 Ieșire din cont
@@ -132,5 +141,16 @@ onMounted(() => {
         </template>
       </div>
     </div>
+
+    <LayoutConfirmDialog
+      v-model:open="logoutConfirmOpen"
+      variant="destructive"
+      title="Ieșire din cont?"
+      description="Vă vom deconecta de pe acest browser. Va trebui să introduceți din nou un cod trimis pe email pentru a intra."
+      confirm-label="Ieșire"
+      cancel-label="Anulează"
+      :loading="loggingOut"
+      @confirm="performLogout"
+    />
   </nav>
 </template>
