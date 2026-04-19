@@ -15,6 +15,15 @@ const EnvSchema = z.object({
     .transform((s) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))
     .pipe(z.array(z.string().email()).min(1))
     .default('dev-noop@example.test'),
+
+  // Resend (transactional email). Magic-link request handler owns the sends.
+  RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().min(1), // format: 'Name <address@domain>'
+
+  // Google OAuth (admin login only). No user OAuth in v1.
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().url(),
 });
 
 export const env = EnvSchema.parse(process.env);
