@@ -14,6 +14,10 @@ const sent = ref(false)
 const submitting = ref(false)
 const errorMsg = ref<string | null>(null)
 
+// Same regex as Zod's z.string().email() — practical, not RFC 5322 pedantic.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isValidEmail = computed(() => EMAIL_RE.test(String(email.value).trim()))
+
 function readCsrf(): string {
   if (import.meta.server) return ''
   const m = document.cookie.match(/(?:^|;\s*)rp_csrf=([^;]+)/)
@@ -21,7 +25,7 @@ function readCsrf(): string {
 }
 
 async function submit() {
-  if (!email.value) return
+  if (!isValidEmail.value) return
   submitting.value = true
   errorMsg.value = null
   try {
@@ -73,7 +77,7 @@ async function submit() {
             <Button
               type="submit"
               class="rounded-full h-12 w-full text-base font-medium"
-              :disabled="!email || submitting"
+              :disabled="!isValidEmail || submitting"
             >
               <span v-if="!submitting">Trimite link de autentificare</span>
               <span v-else>Se trimite…</span>

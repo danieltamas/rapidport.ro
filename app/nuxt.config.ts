@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   ssr: true,
   telemetry: false,
 
-  modules: ['shadcn-nuxt'],
+  modules: ['shadcn-nuxt', 'nuxt-security'],
 
   shadcn: {
     prefix: '',
@@ -93,4 +93,73 @@ export default defineNuxtConfig({
     },
   },
   compatibilityDate: '2025-10-15',
+
+  // nuxt-security owns CSP + headers (replaces the hand-rolled
+  // server/middleware/security-headers.ts). Nonces are injected into SSR inline
+  // scripts/styles so the strict CSP works with Nuxt/Vite payloads.
+  //
+  // Our own middleware stays: csrf.ts (double-submit cookie) + rate-limit.ts
+  // (table-backed per SPEC §S.10). nuxt-security's rateLimiter/csrf are off
+  // because we already implement them with our chosen semantics.
+  security: {
+    nonce: true,
+    sri: true,
+    rateLimiter: false,
+    csrf: false,
+    corsHandler: false, // Nitro routeRules above handle CORS for /api/**
+    strict: false,
+    hidePoweredBy: true,
+    removeLoggers: process.env.NODE_ENV === 'production',
+    ssg: {
+      hashScripts: true,
+      hashStyles: process.env.NODE_ENV === 'production',
+      nitroHeaders: true,
+      exportToPresets: true,
+    },
+    headers: {
+      crossOriginResourcePolicy: 'cross-origin',
+      // COEP require-corp would block cross-origin resources (Google OAuth,
+      // Stripe) that don't send their own CORP — disable.
+      crossOriginEmbedderPolicy: false,
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      contentSecurityPolicy: {
+        'base-uri': ["'self'"],
+        'object-src': ["'none'"],
+        'script-src-attr': ["'none'"],
+        'script-src': [
+          "'self'",
+          "'strict-dynamic'",
+          "'nonce-{{nonce}}'",
+          'https://js.stripe.com',
+          'https://accounts.google.com',
+        ],
+        'style-src': ["'self'", "'nonce-{{nonce}}'", 'https:'],
+        'style-src-elem': ["'self'", "'nonce-{{nonce}}'", 'https:'],
+        // Inline style attributes on elements (Vue sometimes emits these).
+        'style-src-attr': ["'unsafe-inline'"],
+        'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+        'connect-src': [
+          "'self'",
+          'https://api.stripe.com',
+          'https://accounts.google.com',
+        ],
+        'font-src': ["'self'", 'data:'],
+        'frame-src': ['https://js.stripe.com', 'https://accounts.google.com'],
+        'frame-ancestors': ["'none'"],
+        'form-action': ["'self'"],
+        'upgrade-insecure-requests': true,
+      },
+      permissionsPolicy: {
+        camera: [],
+        microphone: [],
+        geolocation: [],
+        payment: ['self', '"https://js.stripe.com"'],
+      },
+      strictTransportSecurity: {
+        maxAge: 31536000,
+        includeSubdomains: true,
+        preload: true,
+      },
+    },
+  },
 })
