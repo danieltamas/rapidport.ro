@@ -67,12 +67,16 @@ export default defineNuxtConfig({
     },
   },
 
+  // Fonts are declared via `@font-face` blocks at the top of tailwind.css,
+  // pointing at self-hosted woff2 files in `public/fonts/`. That keeps them
+  // OUT of Vite's module graph — the previous `@fontsource/*/{400,500,600}.css`
+  // imports pulled in all 7 unicode ranges per weight (cyrillic/greek/vietnamese)
+  // = ~56 @font-face + ~112 woff2 URL refs in Vite's asset graph, all of which
+  // Vite has to process on cold boot even though Romanian only needs latin +
+  // latin-ext. Self-hosting collapses the whole thing into plain `<link>`/URL
+  // resolution by the browser.
   css: [
     '~/assets/css/tailwind.css',
-    '@fontsource/inter/400.css',
-    '@fontsource/inter/500.css',
-    '@fontsource/inter/600.css',
-    '@fontsource/jetbrains-mono/400.css',
   ],
   typescript: {
     strict: true,

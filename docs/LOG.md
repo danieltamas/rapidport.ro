@@ -8,6 +8,19 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### perf(dev): self-host fonts via public/ — cold-boot module-graph fix
+
+Dani reported cold boot was still slow after the previous debug/SRI fix. Culprit identified: `@fontsource/inter/{400,500,600}.css` + `@fontsource/jetbrains-mono/400.css` in the `css: []` array loaded ALL unicode ranges (latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) = ~56 @font-face rules + ~112 woff2/woff URL refs across 4 weights. Vite processed every ref into its asset graph on cold boot, even though Romanian only needs latin + latin-ext.
+
+Fix: serve fonts as static assets from `app/public/fonts/` and declare `@font-face` blocks at the top of `app/assets/css/tailwind.css` with `url('/fonts/...')` paths. That bypasses Vite's module graph entirely — the browser fetches the files directly.
+
+- Copied 8 woff2 files (~200KB total): `inter-latin-{400,500,600}-normal`, `inter-latin-ext-{400,500,600}-normal`, `jetbrains-mono-latin-{400,ext-400}-normal`.
+- Added 8 `@font-face` blocks to `tailwind.css` with matching `unicode-range` declarations mirrored from @fontsource.
+- Removed the four `@fontsource/*` imports from `nuxt.config.ts`'s `css` array.
+- `public/` was a new directory (didn't previously exist) — Nuxt serves it as-is.
+
+Dev boot should now process zero font CSS/woff2 files on startup. The font files are still in `node_modules/@fontsource/*` so the latin subsets picked are the same bytes users got before; only the discovery path is different.
+
 ### perf(dev): disable `debug` + prod-only SRI/hashScripts — slow HMR fix
 
 Dani reported dev reloads were still slow even though memory was down to ~400–500MB from the earlier ~1GB fix. Cause: `debug: process.env.NODE_ENV === 'development'` in `nuxt.config.ts` had been copied verbatim from a wam.* config reference. Nuxt's `debug: true` enables per-request instrumentation + plugin-load traces + HMR chatter that measurably slows every reload.
