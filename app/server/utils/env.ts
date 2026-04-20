@@ -30,6 +30,20 @@ const EnvSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+
+  // SmartBill — invoicing. Basic Auth: Authorization: Basic base64(username:apikey).
+  // Series RAPIDPORT, Gamerina SRL (CIF below). useEFactura set true on PJ invoices.
+  SMARTBILL_USERNAME: z.string().min(1),
+  SMARTBILL_API_KEY: z.string().min(1),
+  SMARTBILL_CIF: z.string().min(1),
+  SMARTBILL_SERIES: z.string().min(1).default('RAPIDPORT'),
+
+  // Scheduled-jobs opt-out for dev (prevents double-firing when two Nitro processes
+  // share the DB). Default true in prod; set false in a second local dev shell.
+  SCHEDULER_ENABLED: z
+    .string()
+    .transform((s) => s.toLowerCase() !== 'false')
+    .default('true'),
 });
 
 export const env = EnvSchema.parse(process.env);
