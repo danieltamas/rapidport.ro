@@ -6,6 +6,61 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ---
 
+## 2026-04-20
+
+### Product pivots + UX hardening + nuxt-security + GDPR endpoints
+
+This session was orchestrator-direct (no task branches) — extensive UX work, product-model clarifications, and four new endpoints (`/api/auth/session`, `/api/me/*`). Not in the formal Phase 2 group system; captured here and in `jobs/HANDOFF.md`.
+
+**Commits:** `64e2878` → `4497a95` (18 commits on main).
+
+**Product pivots:**
+- **Magic-link → 6-digit PIN** (`73da825`). `POST /api/auth/magic-link` now generates a 6-digit code; `POST /api/auth/verify` (replaces `GET /api/auth/verify`) takes `{ email, code, next? }`. `/login` is two-step (email → PinInput). Reason: corporate email gateways (Safe Links, Proofpoint) prefetch single-use URLs. `pages/verify.vue` deleted (flow is now inline).
+- **Flat user auth routes** (`64e2878`). `/auth/login` → `/login`, `/verify` Vue page dropped. Admin unchanged at `/admin/login`. API routes still `/api/auth/*`.
+- **`/profiles` → `/account` dashboard** (`f50522a`). `/account` is a real dashboard (stats, recent migrations, recent invoices). Sub-pages: `/account/migrations`, `/account/invoices`, `/account/profiles` (mapping overrides, de-emphasized), `/account/security`. Mapping-profile visibility (`isPublic`/`adoptionCount`) is admin-only — dropped from user surface.
+- **Bidirectional framing everywhere** (`a246473`). Stats/steps/FAQ/mockup/email-footer all say "WinMentor ⇄ SAGA, în ambele direcții" / "software sursă → destinație".
+- **VAT updated 19% → 21%** (`76ea8d2`) on invoices table, `/job/[id]/pay` breakdown, index footers.
+
+**Middleware posture shift:**
+- **`server/middleware/security-headers.ts` DELETED** (`2eb6a83`). Replaced by `nuxt-security` module configured in `nuxt.config.ts` with per-request nonces, `strict-dynamic`, Stripe + Google OAuth allowlist. Our own `csrf.ts` + `rate-limit.ts` remain because they match SPEC semantics.
+- **`server/middleware/user-auth.ts` NEW** (`73da825`). Guards `/account` + `/account/*` (page redirect to `/login?next=<path>`) and `/api/me/*` + `/api/account/*` (JSON 401).
+- **`admin-auth.ts` now redirects** to `/admin/login` on page auth failure instead of throwing 401.
+
+**New endpoints (not in JOB.md):**
+- `GET /api/auth/session` — current user session for header auth state (`73da825`).
+- `DELETE /api/auth/session` — user logout (`73da825`).
+- `POST /api/auth/verify` — PIN code verify, replaces `verify.get.ts` (`73da825`).
+- `GET /api/me/account` — email + createdAt for Cont panel (`76ea8d2`).
+- `GET /api/me/sessions` — list active sessions (marks current) (`76ea8d2`).
+- `DELETE /api/me/sessions` — revoke all except current (`76ea8d2`).
+- `DELETE /api/me/sessions/[id]` — revoke one (`76ea8d2`).
+- `GET /api/me/export` — full GDPR JSON dump, streamed as attachment (`c5e5249`).
+- `DELETE /api/me` — GDPR account deletion, atomic transaction (`bf9b38b`).
+
+**New utilities:**
+- `app/server/utils/email.ts` — single-instance Resend wrapper (`ed5131f`).
+- `app/server/utils/google-oauth.ts` — PKCE helpers, raw fetch (`ed5131f`).
+
+**New UI primitives / pages:**
+- `app/error.vue` — branded 404/500 page (`64e2878`, revised `5ee28e7`).
+- `app/components/layout/ConfirmDialog.vue` — reusable destructive/default confirmation modal with loading spinner, fade+zoom (`4221bf1`). **Use this for every future confirmation** — do not inline Dialog instances.
+- `app/components/ui/pin-input/*` — shadcn-vue PinInput generated (`044502e`). Paste-to-distribute, auto-verify on complete.
+- `app/components/ui/dialog/DialogContent.vue` — shadcn default `slide-in-from-left` dropped; fade+zoom only (`56d4172`).
+- `app/components/ui/input/Input.vue` — `useVModel` → `defineModel` (`73da825`). Fixes silent v-model propagation bug.
+- `/admin/login` + `/admin` page stubs (`5ee28e7`). OAuth flow has somewhere to land until pages-admin ships.
+
+**Bug fixes of note:**
+- **SSR cookie forward** (`0c09d64`, `bc4c353`). Nuxt's `$fetch` on SSR doesn't forward client cookies to its own API routes. Pattern now: `const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined; $fetch('/api/...', { headers })`. Every page that renders auth state needs this.
+- **Index page bypassed SiteHeader** (`284bfc7`). Had a hardcoded nav; replaced with `<LayoutSiteHeader />`.
+- **`/login` auth redirect** (`284bfc7`). If already logged in, navigateTo(next || '/account').
+- **CSP dev disable** (`5bcd1de`) — then replaced by nuxt-security (`2eb6a83`).
+
+**SmartBill env rename** (`19240a3`, `984f60e`): `SMARTBILL_USERNAME`/`SMARTBILL_TOKEN` → single `SMARTBILL_API_KEY` across CODING.md, SECURITY_REVIEWER.md, REQUIREMENTS.md.
+
+**Handoff** (`4497a95`): `jobs/HANDOFF.md` rewritten for next agent — next wave is `api-jobs`.
+
+---
+
 ## 2026-04-19
 
 ### `phase2-nuxt / auth-user + auth-admin` Wave 3 B — both groups complete

@@ -4,13 +4,21 @@ Current system architecture. Updated after every task that changes routes, schem
 
 ---
 
-## Current State (2026-04-19)
+## Current State (2026-04-20)
 
 Pre-production. Pre-launch.
 
 - `phase0-discovery` — **done, merged to main** (2026-04-18).
 - `phase1-worker` — **done, merged to main** (2026-04-19). Python worker (21 modules, 7,409 LoC) on main; gate passed with deferrals documented in `jobs/phase1-worker/GATE.md`.
-- `phase2-nuxt` — Waves 1 + 2 + 3 merged (2026-04-19): `security-baseline` (3/3), `schema` (6/6), `auth-user` (5/5), `auth-admin` (4/4). Bootstrap already on main (7/7). **11 of 17 Phase 2 groups remain** (`api-jobs`, `api-webhooks`, `api-admin`, `pages-public`, `pages-admin`, `gdpr-cleanup`, `email-guide`, `i18n`, `observability`, `infra`, `ci-tests`, `gate`).
+- `phase2-nuxt` — groups done on main: `bootstrap` (7/7, 2026-04-17), `security-baseline` (3/3, 2026-04-19), `schema` (6/6, 2026-04-19), `auth-user` (5/5, 2026-04-19), `auth-admin` (4/4, 2026-04-19). **This session (2026-04-20)** shipped orchestrator-direct: PIN auth refactor, nuxt-security adoption (replacing hand-rolled security-headers.ts), `/account` dashboard with sub-pages, GDPR export + delete endpoints, reusable `LayoutConfirmDialog` primitive, session revocation endpoints, user-auth middleware. See `docs/LOG.md` entry `2026-04-20` for full list. **Next wave:** `api-jobs` (critical path to first customer). **Remaining groups:** api-jobs, api-webhooks, api-admin, pages-admin, remaining pages-public (`/job/[id]/status`, `/job/[id]/result`), gdpr-cleanup (cron only — endpoints done), email-guide, i18n, observability, infra, ci-tests, gate.
+
+**Product rules established in the 2026-04-20 session (not in SPEC.md — see jobs/HANDOFF.md):**
+- Auth is **6-digit PIN** on email, not magic-link URL (corporate gateways prefetch).
+- User auth routes are flat (`/login`, no `/verify`). Admin stays nested (`/admin/login`).
+- Mapping-profile visibility (`isPublic`/`adoptionCount`) is **admin-only** — the user never sees a "make public" toggle. Platform learns invisibly via `mapping_cache`.
+- VAT is **21%** on user-facing pages.
+- All confirmation UIs use `<LayoutConfirmDialog>` — no ad-hoc Dialog instances.
+- `/account` is a **dashboard** (migrations + invoices + stats), not a profile list.
 
 **UI kit decision (2026-04-17):** switched from Mantine (React-only, incompatible with Vue/Nuxt) to **shadcn-nuxt** (Vue port of shadcn/ui) + **Tailwind v4 via `@tailwindcss/vite`**. Theme preserved verbatim per SPEC §"UI Design System". See `docs/LOG.md` for details.
 
@@ -29,17 +37,42 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   ├── package.json                   # nuxt^3.13 vue^3.5 zod^3.23 @fontsource/inter^5 @fontsource/jetbrains-mono^5 runtime
 │   ├── package-lock.json              # committed for reproducible installs
 │   ├── app.vue                        # minimal <NuxtLayout><NuxtPage /></NuxtLayout>
+│   ├── error.vue                      # branded 404/500 page — SiteHeader + SiteFooter + theme tokens
 │   ├── pages/
-│   │   └── index.vue                  # "Rapidport — in progress" placeholder (to be replaced by pages-landing)
+│   │   ├── index.vue                  # landing (MinIO-inspired, bidirectional copy, uses <LayoutSiteHeader />)
+│   │   ├── login.vue                  # PIN auth: step 1 email → step 2 6-digit PinInput (auto-verify on complete)
+│   │   ├── upload.vue                 # file upload drop zone (API wiring pending with api-jobs-upload)
+│   │   ├── account/
+│   │   │   ├── index.vue              # dashboard — stats cards, recent migrations, recent invoices, quick links
+│   │   │   ├── migrations.vue         # full migration history (stub until api-jobs-list)
+│   │   │   ├── invoices.vue           # SmartBill invoices table, PDF download (stub until smartbill-client)
+│   │   │   ├── profiles.vue           # mapping overrides — framed as advanced, empty-state default
+│   │   │   └── security.vue           # Cont panel + sessions list + data export + danger-zone delete (all wired)
+│   │   ├── admin/
+│   │   │   ├── login.vue              # 'Sign in with Google' button → /api/auth/google/start
+│   │   │   └── index.vue              # placeholder dashboard stub (logout button wired) — pages-admin owns the real one
+│   │   ├── job/[id]/
+│   │   │   ├── discovery.vue          # (pre-existing)
+│   │   │   ├── mapping.vue            # (pre-existing)
+│   │   │   └── pay.vue                # (pre-existing — VAT updated to 21%)
+│   │   └── legal/                     # terms/privacy/dpa/refund (pre-existing)
 │   ├── assets/css/
 │   │   └── tailwind.css               # @import "tailwindcss"; :root Rapidport tokens + shadcn alias vars + @theme inline + .light overrides + html/body dark baseline
-│   ├── components.json                # shadcn-vue config (Rapidport-flat aliases)
+│   ├── components.json                # shadcn-vue config (Rapidport-flat aliases; 'framework' key dropped — new shadcn-vue CLI rejects it)
+│   ├── components/layout/             # Rapidport-specific layout components (auto-imported as Layout*)
+│   │   ├── SiteHeader.vue             # auth-aware nav: logged-in email dropdown (Contul meu / Securitate / Ieșire) or Autentificare link
+│   │   ├── SiteFooter.vue             # global footer
+│   │   ├── LegalPage.vue              # legal page wrapper
+│   │   └── ConfirmDialog.vue          # reusable confirmation modal — v-model:open, variant default/destructive, loading, fade+zoom
 │   ├── components/ui/                 # shadcn primitives — auto-imported by shadcn-nuxt
+│   │   ├── accordion/                 # Accordion, AccordionContent, AccordionItem, AccordionTrigger
 │   │   ├── alert/                     # Alert, AlertDescription, AlertTitle
 │   │   ├── badge/                     # Badge + variants (default, secondary, destructive, outline)
 │   │   ├── button/                    # Button + variants (default, destructive, outline, secondary, ghost, link)
 │   │   ├── card/                      # Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
-│   │   ├── input/                     # Input with useVModel
+│   │   ├── dialog/                    # Dialog — shadcn default slide-in-from-left REMOVED; fade+zoom only
+│   │   ├── input/                     # Input using defineModel (switched from useVModel — fixes silent v-model propagation)
+│   │   ├── pin-input/                 # PinInput + Group + Slot + Separator (reka-ui wrapper) — paste-distributes, @complete
 │   │   └── table/                     # Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption, TableFooter, TableEmpty
 │   ├── lib/
 │   │   └── utils.ts                   # cn() helper (clsx + tailwind-merge)
@@ -67,12 +100,13 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   └── metrics.ts         # admin dashboard time-series (jobs/hour, payment success, etc.)
 │   │   │   └── client.ts              # pg Pool (max 20) + Drizzle instance, exports `db` and `pool`
 │   │   ├── middleware/                # Nitro global middleware (alphabetical load order)
-│   │   │   ├── admin-auth.ts          # /admin/* + /api/admin/* guard; calls assertAdminSession
+│   │   │   ├── admin-auth.ts          # /admin/* → redirect to /admin/login on failure; /api/admin/* → 401/403 JSON
 │   │   │   ├── csrf.ts                # double-submit cookie (rp_csrf ↔ x-csrf-token), webhook exempt
 │   │   │   ├── rate-limit.ts          # sliding window on rate_limits table; fail-closed for admin login
-│   │   │   └── security-headers.ts    # HSTS, strict CSP (no unsafe-*), X-Frame, Referrer, Permissions-Policy
+│   │   │   └── user-auth.ts           # /account/* → redirect to /login?next=<path>; /api/me/* + /api/account/* → 401 JSON
+│   │   │                              # (security-headers.ts REMOVED — nuxt-security module handles CSP/HSTS/etc)
 │   │   ├── utils/
-│   │   │   ├── env.ts                 # Zod EnvSchema (now with ADMIN_EMAILS + Resend + Google OAuth); only reader of process.env
+│   │   │   ├── env.ts                 # Zod EnvSchema (ADMIN_EMAILS + Resend + Google OAuth); only reader of process.env
 │   │   │   ├── auth-user.ts           # user session lifecycle — SHA-256 hashed tokens, 30d TTL
 │   │   │   ├── auth-admin.ts          # admin session lifecycle — 8h TTL, IP-hash bound, 'admin_session' cookie
 │   │   │   ├── anonymous-token.ts     # per-job access token — cookie job_access_${id}, SameSite Strict
@@ -82,11 +116,20 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   └── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
 │   │   ├── api/
 │   │   │   ├── auth/
-│   │   │   │   ├── magic-link.post.ts       # issue magic link (rate-limited 5/hr per email, fail-closed)
-│   │   │   │   ├── verify.get.ts            # consume magic link + session + anonymous-job claim
+│   │   │   │   ├── magic-link.post.ts       # issue 6-digit PIN email — rate-limited 5/hr per email, fail-closed (name kept for back-compat)
+│   │   │   │   ├── verify.post.ts           # consume PIN code + atomic find-or-create user + session + anonymous-job claim
+│   │   │   │   ├── session.get.ts           # current user session { email } or { email: null } — header auth state
+│   │   │   │   ├── session.delete.ts        # user logout — revoke + clear cookie
 │   │   │   │   └── google/
 │   │   │   │       ├── start.get.ts         # PKCE + state → Google authorize URL (302)
 │   │   │   │       └── callback.get.ts      # one-shot state → allowlist → createAdminSession
+│   │   │   ├── me/
+│   │   │   │   ├── account.get.ts           # { email, createdAt } for Cont panel
+│   │   │   │   ├── export.get.ts            # GDPR JSON dump — streams as attachment
+│   │   │   │   ├── index.delete.ts          # GDPR account deletion — atomic transaction, soft-delete users
+│   │   │   │   ├── sessions.get.ts          # list active sessions (marks current)
+│   │   │   │   ├── sessions.delete.ts       # revoke all except current
+│   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
 │   │   │   └── admin/
 │   │   │       └── logout.post.ts           # revokeAdminSession + audit
 │   │   └── plugins/
