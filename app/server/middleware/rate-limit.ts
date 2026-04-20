@@ -25,7 +25,11 @@ type RouteRule = {
 const ROUTES: readonly RouteRule[] = [
   { method: 'POST', pathPrefix: '/api/jobs', match: 'exact', limit: 10, windowSec: 3600, keyBy: 'ip' },
   { method: 'PUT', pathPrefix: '/api/jobs/', match: 'suffix', suffix: '/upload', limit: 3, windowSec: 3600, keyBy: 'ip' },
-  { method: 'GET', pathPrefix: '/admin/login', match: 'exact', limit: 10, windowSec: 3600, keyBy: 'ip', failClosed: true },
+  // Admin login page load limit. SPEC §S.10 originally said 10/hr but that's
+  // too tight in practice (dev iteration, a user clicking around, OAuth
+  // bouncing through the popup). 60/hr still blocks password-style brute
+  // force and page-load-spam; fail-closed on DB errors so no bypass.
+  { method: 'GET', pathPrefix: '/admin/login', match: 'exact', limit: 60, windowSec: 3600, keyBy: 'ip', failClosed: true },
   { method: 'POST', pathPrefix: '/api/anaf/lookup', match: 'exact', limit: 30, windowSec: 3600, keyBy: 'ip' },
 ];
 
