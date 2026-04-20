@@ -38,6 +38,12 @@ export const jobs = pgTable(
     mappingProfileId: uuid('mapping_profile_id').references((): AnyPgColumn => mappingProfiles.id),
     billingEmail: text('billing_email'),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
+    // Email notification sent-at markers (migration 0005). Each is null until
+    // `schedule-tasks/email-notification-sweep` fires the corresponding email
+    // and stamps it. Fire-once semantics — admin re-run / user resync won't
+    // re-send, matches the /job/[id]/status live UI.
+    emailMappingReadySentAt: timestamp('email_mapping_ready_sent_at', { withTimezone: true }),
+    emailConversionReadySentAt: timestamp('email_conversion_ready_sent_at', { withTimezone: true }),
   },
   (t) => ({
     userIdIdx: index().on(t.userId),
