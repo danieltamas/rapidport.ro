@@ -8,6 +8,18 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### perf(dev): split nuxt-security prod/dev — materially faster cold boot
+
+Measured baseline: 30s to rundev-green + 40s more until first page (70s total cold). Dani confirmed "loads a lot faster" after this change landed.
+
+The 40s green→first-page gap was mostly nuxt-security doing its full dance on every SSR response: nonce injection (HTML parse + token replace), CSP policy stringification, SRI/hash computation, header assembly. Dev is localhost-bound so the attack-model payoff of those headers is nil.
+
+`app/nuxt.config.ts` — `security` config is now a ternary on `process.env.NODE_ENV`:
+- **Prod:** unchanged. Full CSP with `'strict-dynamic' 'nonce-{{nonce}}'`, SRI on, HSTS, permissions-policy, the works.
+- **Dev:** nonce off, CSP off, SRI off, HSTS off, permissions-policy off, all ssg hashing off. Only `crossOriginOpenerPolicy: 'unsafe-none'` kept — the admin OAuth popup still needs it (Chrome's default severs `window.opener`).
+
+Companion change (`aadb5e3`): `vite.optimizeDeps.include` force-pre-bundles the heavy deps (`lucide-vue-next`, `reka-ui`, `@stripe/stripe-js`, `@vueuse/core`, `class-variance-authority`, `clsx`, `tailwind-merge`) at Vite startup instead of letting them be discovered lazily on first request. Moves the cost into startup, where rundev is already waiting, instead of the post-green request.
+
 ### perf(dev): self-host fonts via public/ — cold-boot module-graph fix
 
 Dani reported cold boot was still slow after the previous debug/SRI fix. Culprit identified: `@fontsource/inter/{400,500,600}.css` + `@fontsource/jetbrains-mono/400.css` in the `css: []` array loaded ALL unicode ranges (latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese) = ~56 @font-face rules + ~112 woff2/woff URL refs across 4 weights. Vite processed every ref into its asset graph on cold boot, even though Romanian only needs latin + latin-ext.
