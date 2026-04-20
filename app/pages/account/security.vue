@@ -18,18 +18,25 @@ type SessionRow = {
 type Account = { email: string; createdAt: string }
 
 // Cookie-forwarded SSR fetches so the header + page render already-authenticated.
+// lazy:true + dropped await → navigation isn't blocked; the template renders
+// with the default (null / []) + skeleton placeholders and fills in when the
+// request resolves.
 const reqHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
 
-const { data: account } = await useAsyncData<Account | null>(
+const { data: account, pending: accountPending } = useAsyncData<Account | null>(
   'me-account',
   () => $fetch<Account>('/api/me/account', { headers: reqHeaders }),
-  { default: () => null },
+  { lazy: true, default: () => null },
 )
 
-const { data: sessionList, refresh: refreshSessions } = await useAsyncData<SessionRow[]>(
+const {
+  data: sessionList,
+  pending: sessionsPending,
+  refresh: refreshSessions,
+} = useAsyncData<SessionRow[]>(
   'me-sessions',
   () => $fetch<SessionRow[]>('/api/me/sessions', { headers: reqHeaders }),
-  { default: () => [] },
+  { lazy: true, default: () => [] },
 )
 
 function readCsrf(): string {
@@ -168,7 +175,7 @@ async function exportData() {
 
     <main class="flex-1">
       <section>
-        <div class="mx-auto max-w-[900px] px-6 py-14">
+        <div class="mx-auto max-w-[1280px] px-6 py-14">
           <NuxtLink to="/account" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
             <ArrowLeft class="size-4" :stroke-width="2" />
             Contul meu
@@ -189,11 +196,13 @@ async function exportData() {
                   <Mail class="size-4" :stroke-width="2" />
                   Email
                 </dt>
-                <dd class="font-mono">{{ account?.email ?? '—' }}</dd>
+                <dd v-if="accountPending && !account" class="h-4 w-48 rounded bg-muted animate-pulse" />
+                <dd v-else class="font-mono">{{ account?.email ?? '—' }}</dd>
               </div>
               <div class="flex items-center justify-between">
                 <dt class="text-muted-foreground">Cont creat</dt>
-                <dd>{{ account?.createdAt ? formatDateRO(account.createdAt) : '—' }}</dd>
+                <dd v-if="accountPending && !account" class="h-4 w-32 rounded bg-muted animate-pulse" />
+                <dd v-else>{{ account?.createdAt ? formatDateRO(account.createdAt) : '—' }}</dd>
               </div>
               <div class="flex items-center justify-between">
                 <dt class="text-muted-foreground">Autentificare</dt>
@@ -217,7 +226,24 @@ async function exportData() {
                 Deconectează celelalte
               </Button>
             </div>
-            <div v-if="sessionList.length === 0" class="px-6 py-8 text-center text-sm text-muted-foreground">
+            <!-- Pending skeleton rows while the first fetch resolves. -->
+            <template v-if="sessionsPending && sessionList.length === 0">
+              <div
+                v-for="n in 2"
+                :key="`skeleton-${n}`"
+                class="flex items-center gap-4 px-6 py-4 border-b border-border last:border-b-0"
+              >
+                <div class="size-5 rounded bg-muted animate-pulse shrink-0" />
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 w-40 rounded bg-muted animate-pulse" />
+                  <div class="h-3 w-56 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+            </template>
+            <div
+              v-else-if="sessionList.length === 0"
+              class="px-6 py-8 text-center text-sm text-muted-foreground"
+            >
               Niciuna (ciudat — ar trebui să existe cel puțin una).
             </div>
             <div

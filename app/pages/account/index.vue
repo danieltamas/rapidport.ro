@@ -26,7 +26,7 @@ const { data: session } = useAsyncData(
   () => $fetch<{ email: string | null }>('/api/auth/session', {
     headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
   }),
-  { default: () => ({ email: null }) },
+  { lazy: true, default: () => ({ email: null }) },
 )
 
 type MigrationStatus = 'ready' | 'expired' | 'failed' | 'pending'
