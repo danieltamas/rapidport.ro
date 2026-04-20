@@ -134,9 +134,20 @@ async function deleteAccount() {
   deleteAccountOpen.value = false
 }
 
+const exportLoading = ref(false)
 async function exportData() {
-  // TODO: GET /api/me/export lands with gdpr-cleanup.
-  await new Promise((r) => setTimeout(r, 300))
+  if (exportLoading.value) return
+  exportLoading.value = true
+  try {
+    // Navigate directly to the endpoint so the browser handles the Content-
+    // Disposition attachment and triggers the download. Cookies flow automatically.
+    // Using window.location keeps the UX simple (no blob fetch + URL.createObjectURL).
+    window.location.href = '/api/me/export'
+    // Give the browser a moment to kick off the download before re-enabling the button.
+    setTimeout(() => { exportLoading.value = false }, 1500)
+  } catch {
+    exportLoading.value = false
+  }
 }
 </script>
 
@@ -235,12 +246,13 @@ async function exportData() {
           <div class="rounded-2xl border border-border bg-card p-6 md:p-8 mb-6">
             <h2 class="text-lg font-semibold mb-2">Export date (GDPR)</h2>
             <p class="text-sm text-muted-foreground mb-5 leading-relaxed">
-              Primiți un fișier JSON cu toate datele pe care le avem despre contul dvs.: portări,
-              facturi, profiluri de mapare, sesiuni. Trimis pe email în cel mult 24h.
+              Descărcați un fișier JSON cu toate datele pe care le avem despre contul dvs.: portări,
+              plăți, profiluri de mapare, sesiuni, jurnal de evenimente.
             </p>
-            <Button variant="outline" class="rounded-full h-10" @click="exportData">
+            <Button variant="outline" class="rounded-full h-10" :disabled="exportLoading" @click="exportData">
               <Download class="size-4 mr-1" :stroke-width="2" />
-              Cere exportul datelor
+              <span v-if="!exportLoading">Descarcă datele mele</span>
+              <span v-else>Se pregătește…</span>
             </Button>
           </div>
 
