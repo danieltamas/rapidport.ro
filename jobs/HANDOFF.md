@@ -1,7 +1,9 @@
 # Handoff — end of 2026-04-20 late session
 
-**Date:** 2026-04-20 (very late) | **Branch:** `main` (clean) | **Ahead of origin:** 187 commits
-**Focus of this session:** Admin UX hardening — popup OAuth, dark theme, mobile drawer, audit performance, dev-RSS cut, logout confirm, + filed a follow-up TODO.
+**Date:** 2026-04-20 (very late) | **Branch:** `main` (clean)
+**Focus of this session:** Admin UX hardening — popup OAuth, dark theme, mobile drawer, audit performance, dev-RSS cut, logout confirm. Plus `/account/security` width parity + lazy fetches with skeletons. One follow-up TODO filed (`jobs/phase2-nuxt/TODO-admin-user-detail-payments.md`).
+
+For a live view of what's on your branch vs. origin, run `git log --oneline origin/main..HEAD`. Numbers get stale the moment anyone pushes, so they're not pinned here.
 
 ---
 
@@ -57,6 +59,11 @@ Scheduler plugin registers 6 cron jobs (4 cleanup + SmartBill sweep + email noti
   - `experimental.appManifest: false`
   - `nitro.typescript.generateTsConfig: false`
   - `SCHEDULER_ENABLED` now defaults to `production`-only.
+
+**`/account/security` width + skeletons (`3c80e0c`)**
+- Width was `max-w-[900px]` while every other `/account/*` page used `max-w-[1280px]` — switching tabs felt like the page jumped. Normalized to 1280px.
+- Both `/account` and `/account/security` used blocking `useAsyncData` (security still had `await`). Nav hung on the `/api/me/account` + `/api/me/sessions` round-trips. Switched to `{ lazy: true }` + dropped `await`. Pages render immediately.
+- Security page now shows skeleton placeholders (`animate-pulse` bars matching field sizes) while the first fetch resolves — instead of flashing `—` and then populating.
 
 ---
 
