@@ -15,6 +15,20 @@ import { env } from './env';
 const BASE_URL = 'https://ws.smartbill.ro/SBORO/api';
 const MAX_RETRIES = 3;
 
+/**
+ * True when all required SmartBill env vars are set to real values (not the
+ * dev-safe placeholders declared in env.ts). Callers (e.g. the invoice sweep)
+ * short-circuit when false so dev boot stays quiet and prod fails loudly on
+ * unset creds at first real issuance attempt.
+ */
+export function isSmartBillConfigured(): boolean {
+  return (
+    env.SMARTBILL_USERNAME !== 'dev-noop@example.test' &&
+    env.SMARTBILL_API_KEY !== 'dev-noop' &&
+    env.SMARTBILL_CIF !== 'RO00000000'
+  );
+}
+
 export type SmartBillClient =
   | { entity: 'pj'; name: string; cui: string; address: string; regCom?: string; email?: string }
   | { entity: 'pf'; name: string; address?: string; email?: string };

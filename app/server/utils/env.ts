@@ -33,9 +33,14 @@ const EnvSchema = z.object({
 
   // SmartBill — invoicing. Basic Auth: Authorization: Basic base64(username:apikey).
   // Series RAPIDPORT, Gamerina SRL (CIF below). useEFactura set true on PJ invoices.
-  SMARTBILL_USERNAME: z.string().min(1),
-  SMARTBILL_API_KEY: z.string().min(1),
-  SMARTBILL_CIF: z.string().min(1),
+  //
+  // Dev-safe placeholders so boot doesn't fail if you haven't wired SmartBill yet.
+  // The invoice-sweep task checks `isSmartBillConfigured()` and no-ops when it
+  // sees these placeholders — so the app runs, the sweep stays quiet, and you
+  // wire in real values when you're ready. In prod the operator MUST set them.
+  SMARTBILL_USERNAME: z.string().min(1).default('dev-noop@example.test'),
+  SMARTBILL_API_KEY: z.string().min(1).default('dev-noop'),
+  SMARTBILL_CIF: z.string().min(1).default('RO00000000'),
   SMARTBILL_SERIES: z.string().min(1).default('RAPIDPORT'),
 
   // Scheduled-jobs opt-out for dev (prevents double-firing when two Nitro processes

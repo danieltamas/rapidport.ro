@@ -5,7 +5,7 @@
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { adminAuditLog, jobs, payments } from '../../db/schema';
-import { createInvoice, SmartBillError, type SmartBillClient } from '../smartbill';
+import { createInvoice, isSmartBillConfigured, SmartBillError, type SmartBillClient } from '../smartbill';
 
 const SWEEP_BATCH = 20;
 const STUCK_THRESHOLD = 20; // consecutive failures before we surface to admin
@@ -41,7 +41,14 @@ function buildClient(bi: BillingInfo | null, fallbackEmail: string | null): Smar
   };
 }
 
-export async function runSmartBillInvoiceSweep(): Promise<{ issued: number; failed: number }> {
+export async function runSmartBillInvoiceSweep(): Promise<{ issued: number; failed: number; skipped?: boolean }> {
+  if (!isSmartBillConfigured()) {
+    // Dev-safe no-op. Set SMARTBILL_USERNAME / SMARTBILL_API_KEY / SMARTBILL_CIF
+    // in .env to enable issuance. Returning `skipped: true` keeps the scheduler
+    // log tidy and avoids the 20-consecutive-failure escalation path.
+    return { issued: 0, failed: 0, skipped: true };
+  }
+
   const pending = await db
     .select({
       paymentId: payments.id,
