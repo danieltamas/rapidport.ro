@@ -10,7 +10,7 @@ Pre-production. Pre-launch.
 
 - `phase0-discovery` — **done, merged to main** (2026-04-18).
 - `phase1-worker` — **done, merged to main** (2026-04-19). Python worker (21 modules, 7,409 LoC) on main; gate passed with deferrals documented in `jobs/phase1-worker/GATE.md`.
-- `phase2-nuxt` — groups done on main: `bootstrap` (7/7, 2026-04-17), `security-baseline` (3/3, 2026-04-19), `schema` (6/6, 2026-04-19), `auth-user` (5/5, 2026-04-19), `auth-admin` (4/4, 2026-04-19). **This session (2026-04-20)** shipped orchestrator-direct: PIN auth refactor, nuxt-security adoption (replacing hand-rolled security-headers.ts), `/account` dashboard with sub-pages, GDPR export + delete endpoints, reusable `LayoutConfirmDialog` primitive, session revocation endpoints, user-auth middleware. See `docs/LOG.md` entry `2026-04-20` for full list. **Next wave:** `api-jobs` (critical path to first customer). **Remaining groups:** api-jobs, api-webhooks, api-admin, pages-admin, remaining pages-public (`/job/[id]/status`, `/job/[id]/result`), gdpr-cleanup (cron only — endpoints done), email-guide, i18n, observability, infra, ci-tests, gate.
+- `phase2-nuxt` — groups done on main: `bootstrap` (7/7, 2026-04-17), `security-baseline` (3/3, 2026-04-19), `schema` (6/6, 2026-04-19), `auth-user` (5/5, 2026-04-19), `auth-admin` (4/4, 2026-04-19), **`api-jobs` (6/6 user-facing handlers, 2026-04-20)**. The 2026-04-20 session also shipped orchestrator-direct: PIN auth refactor, nuxt-security adoption, `/account` dashboard, GDPR endpoints, Wave 4 prep utilities (`utils/queue.ts`, `utils/stripe.ts`, `types/queue.ts`). See `docs/LOG.md` for full list. **Next wave:** `api-jobs` Wave 4b (pay + download/resync) and Wave 4c (Stripe webhook). **Remaining groups:** api-jobs, api-webhooks, api-admin, pages-admin, remaining pages-public (`/job/[id]/status`, `/job/[id]/result`), gdpr-cleanup (cron only — endpoints done), email-guide, i18n, observability, infra, ci-tests, gate.
 
 **Product rules established in the 2026-04-20 session (not in SPEC.md — see jobs/HANDOFF.md):**
 - Auth is **6-digit PIN** on email, not magic-link URL (corporate gateways prefetch).
@@ -134,8 +134,16 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── sessions.get.ts          # list active sessions (marks current)
 │   │   │   │   ├── sessions.delete.ts       # revoke all except current
 │   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
-│   │   │   └── admin/
-│   │   │       └── logout.post.ts           # revokeAdminSession + audit
+│   │   │   ├── admin/
+│   │   │   │   └── logout.post.ts           # revokeAdminSession + audit
+│   │   │   └── jobs/
+│   │   │       ├── index.post.ts            # POST /api/jobs — Zod {source,target,billingEmail?}; mints anon token; sets cookie; 10/hr/IP rate limit
+│   │   │       ├── [id].get.ts              # GET  /api/jobs/[id] — assertJobAccess first; strips anonymousAccessToken from response
+│   │   │       └── [id]/
+│   │   │           ├── upload.put.ts        # PUT  /api/jobs/[id]/upload — multipart, magic-byte sniff (zip|tgz|7z), 500MB cap, 3/hr/IP
+│   │   │           ├── discover.post.ts     # POST /api/jobs/[id]/discover — readdir on-disk path; publishDiscover(); progress=queued
+│   │   │           ├── events.get.ts        # GET  /api/jobs/[id]/events — SSE (2s poll, 15s heartbeat, terminal-state close, 10min cap)
+│   │   │           └── mapping.patch.ts     # PATCH /api/jobs/[id]/mapping — Zod-validated mapping update; state guard mapped→reviewing
 │   │   └── plugins/
 │   │       ├── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   │       └── queue-shutdown.ts      # Nitro 'close' hook → stopQueue() for graceful pg-boss shutdown

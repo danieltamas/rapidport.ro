@@ -1,6 +1,60 @@
-# Handoff — Phase 2 auth complete, api-jobs is the next wave
+# Handoff — api-jobs Wave 4 shipped, Wave 4b (pay + download/resync) is next
 
-**Date:** 2026-04-20 | **Last orchestrator session:** PIN auth + account dashboard + GDPR export/delete + nuxt-security + product clarifications | **Next:** api-jobs wave
+**Date:** 2026-04-20 (late) | **Last orchestrator session:** Wave 4 prep + 6 user-facing job handlers | **Next:** api-jobs Wave 4b (pay, download/resync) → Wave 4c (Stripe webhook)
+
+---
+
+## Wave 4 status (just landed on main)
+
+Merge: `437edaf`. Six handlers + Wave 4 prep + cloudflared host fix all on main.
+
+| Endpoint | File | Notes |
+|---|---|---|
+| `POST /api/jobs` | `app/server/api/jobs/index.post.ts` | Anon token + cookie; 10/hr/IP rate limit (middleware) |
+| `GET  /api/jobs/[id]` | `app/server/api/jobs/[id].get.ts` | `assertJobAccess` first; `anonymousAccessToken` stripped |
+| `PUT  /api/jobs/[id]/upload` | `app/server/api/jobs/[id]/upload.put.ts` | Multipart, magic-byte sniff, 500MB cap, 3/hr/IP |
+| `POST /api/jobs/[id]/discover` | `app/server/api/jobs/[id]/discover.post.ts` | readdir on-disk path (see TODO below) |
+| `GET  /api/jobs/[id]/events` | `app/server/api/jobs/[id]/events.get.ts` | SSE — 2s poll, 15s heartbeat, terminal-state close |
+| `PATCH /api/jobs/[id]/mapping` | `app/server/api/jobs/[id]/mapping.patch.ts` | mapped→reviewing state guard |
+
+**Worker harness re-confirmed:** Bash-denied bug recurred for the discover worker; salvaged orchestrator-direct (commit `546f5fc` on its task branch, then squash-merged). Future worker prompts should pre-authorize a write-only fallback so the salvage round-trip can collapse to a SendMessage.
+
+## TODO carried into Wave 4b — schema gap on upload disk filename
+
+The upload handler stores files with a random on-disk filename `{randomUUID}.{ext}` but only persists `uploadFilename` (the user's *original* filename) to `jobs`. Discover currently `readdir`s the upload dir to recover the path. Wave 4b's `api-jobs-download-resync` and any future delta-sync flow will hit the same gap.
+
+**Recommended Wave 4b prep (single migration):** add `jobs.uploadDiskFilename text` column. Backfill is unnecessary (only the in-flight job needs it; the column is null for old rows and the discover handler can keep the readdir fallback for a release). Drop the readdir branch from `discover.post.ts` once shipped.
+
+## Wave 4b — next 2 parallel workers
+
+After the schema fix above (or accepting the readdir for now):
+
+| Task | File | Key points |
+|---|---|---|
+| `api-jobs-pay` | `app/server/api/jobs/[id]/pay.post.ts` | `stripe.paymentIntents.create({ amount, currency: 'ron', metadata: { jobId } })` with `idempotencyKey: jobPaymentIdempotencyKey(id)` (use the helper from `utils/stripe.ts`). Compute amount from job (base + delta-sync slots, VAT 21%). Return `client_secret` only. **Live keys in `.env` — see auto-memory note.** |
+| `api-jobs-download-resync` | `app/server/api/jobs/[id]/download.get.ts` + `app/server/api/jobs/[id]/resync.post.ts` | Download streams output ZIP (`/data/jobs/{id}/output/...`); Resync checks `deltaSyncsUsed < deltaSyncsAllowed`, increments, publishes a delta-sync job. |
+
+## Wave 4c — solo
+
+`api-webhooks-stripe` at `app/server/api/webhooks/stripe.post.ts`. Use `stripe.webhooks.constructEvent(rawBody, sig, env.STRIPE_WEBHOOK_SECRET)`. 5-min replay window. Dedup via `stripe_events` (INSERT on event id, ON CONFLICT DO NOTHING). On `payment_intent.succeeded`: mark job PAID, `publishConvert({ job_id, input_path, output_dir })` (see Pydantic shape — also requires the on-disk filename!), send confirmation email, trigger SmartBill invoice. Idempotent end-to-end. **Webhook is exempt from CSRF middleware via the `/api/webhooks/*` allowlist.**
+
+---
+
+## Stripe — Dani's `.env` has LIVE keys (not test)
+
+Wave 4b workers can ship `api-jobs-pay`. **Do not run a live end-to-end without confirmation.** Either swap to test keys for the first exercise, or get explicit authorization for a small-amount live smoke (€0.50). Saved as project memory; new sessions will see this.
+
+## Open SPEC questions still blocking
+
+- **Q#1 (legal entity):** ✅ ANSWERED — Gamerina SRL, already wired across footer/terms/privacy/dpa/invoices. SmartBill is configured under Gamerina.
+- **Q#3 (SmartBill series):** still placeholder `RAPIDPORT-YYYY-NNNN`. Blocks `smartbill-client`.
+- **Q#4 (refund policy):** unanswered. Blocks `pages-legal/refund.vue` + admin refund flow. Does NOT block Wave 4b/4c.
+
+---
+
+## Previous handoff (preserved below for context)
+
+
 
 Read this first in the new session. Then read `jobs/INDEX.md` and `jobs/phase2-nuxt/JOB.md`.
 

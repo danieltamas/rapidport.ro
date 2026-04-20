@@ -8,6 +8,35 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-jobs` Wave 4 — 6 user-facing job handlers shipped to main
+
+**Merge commit:** `437edaf` (group `job/phase2-nuxt/api-jobs` → main, --no-ff)
+
+**Task commits (squashed into group):**
+- `0aa022a` — `feat(api): POST /api/jobs — create job + anonymous token + cookie`
+- `a98e101` — `feat(api): GET /api/jobs/[id] — gated read, anonymousAccessToken stripped`
+- `0d3d2a2` — `feat(api): PUT /api/jobs/[id]/upload — multipart, magic-byte gated, 500MB cap`
+- `973b394` — `feat(api): POST /api/jobs/[id]/discover — publish pg-boss discover job`
+- `a942bb1` — `feat(api): GET /api/jobs/[id]/events — SSE progress stream`
+- `849c175` — `feat(api): PATCH /api/jobs/[id]/mapping — validated mapping update`
+
+**Summary:** 6 parallel workers in isolated worktrees. 5 shipped clean; `api-jobs-discover` was orchestrator-direct salvage after the worker hit the harness Bash-denied bug (same pattern used for `auth-admin-logout` last session). All handlers follow the same shape: Zod-validate path/body → `assertJobAccess(id, event)` FIRST → Drizzle for state mutation → tightly-scoped JSON response.
+
+**New endpoints on main:**
+- `POST /api/jobs` — Zod body `{sourceSoftware, targetSoftware, billingEmail?}` (source≠target enforced); resolves optional user via `getUserSession`; mints anonymous token; sets path-scoped cookie; returns `{id, anonymousAccessToken, source, target}`. Rate limit 10/hr/IP from middleware.
+- `GET /api/jobs/[id]` — `assertJobAccess` first; returns full job row minus `anonymousAccessToken`; date columns serialized to ISO.
+- `PUT /api/jobs/[id]/upload` — multipart, exactly one `file` part; Content-Length pre-flight at 500MB (411 if missing, 413 if exceeded); magic-byte sniff (zip / 7z / gzip→tgz, never trusts filename or Content-Type); persists at `/data/jobs/{id}/upload/{randomUuid}.{ext}`; only `uploadFilename` (original) + `uploadSize` written to DB. Rate limit 3/hr/IP from middleware.
+- `POST /api/jobs/[id]/discover` — requires prior upload (`uploadFilename` set, 409 `not_uploaded` otherwise); resolves on-disk path by `readdir(/data/jobs/{id}/upload/)` and matching `{uuid}.{ext}` regex (409 on 0 or >1 matches); publishes `DiscoverPayload {job_id, input_path}` via `publishDiscover()`; sets `progressStage='queued'`. Worker side is currently a TODO stub (`worker/src/migrator/consumer.py:509`) — discover jobs will fail with `discover_not_implemented` until the Python side ships.
+- `GET /api/jobs/[id]/events` — H3 `createEventStream`; primes with current snapshot; polls `(stage, pct, status)` every 2s, pushes only on change; named `heartbeat` event every 15s (proxy keepalive); terminal statuses (`succeeded|failed|expired`) emit final event then close; `stream.onClosed` tears down all timers (no zombie pollers); 10-min hard cap.
+- `PATCH /api/jobs/[id]/mapping` — Zod body `{mappings: MappingEntry[1..5000]}`; pre-checks Content-Length (~2MB cap); state guard: `progressStage` must be `'mapped'` or `'reviewing'`; advances `mapped → reviewing`; preserves `reviewing`; returns `{ok, count}`.
+
+**Wave-level finding (logged as TODO for next wave):** the upload handler stores files with a random on-disk filename but only persists the user's *original* filename to `jobs.uploadFilename`. Discover, future delta-sync, and GDPR file-export consumers all need the on-disk path. Today they readdir; the right fix is a schema migration adding `jobs.uploadDiskFilename`. Should land before Wave 4b's `api-jobs-download-resync` so download can stream the on-disk file directly. Documented in `DONE-api-jobs-discover.md`.
+
+**Hard rules reinforced this wave:**
+- Worker prompts must explicitly say "create branch from group, NOT main" — workers verified `git branch --show-current` before writing code.
+- `npm install` inside worktrees was unavoidable (worktrees don't share `node_modules`); workers ran `npm install --ignore-scripts` for their typecheck pass. Not committed (no manifest changes).
+- The Bash-denied harness bug recurred; salvage pattern (orchestrator reads spec + reconstructs) worked again. Future worker prompts should pre-empt by including a write-only fallback authorization.
+
 ### `api-jobs` Wave 4 prep — pg-boss publisher + Stripe client + queue payload types
 
 **Commit:** `fa484b4` (orchestrator-direct on main)
