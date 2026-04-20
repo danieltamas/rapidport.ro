@@ -133,6 +133,24 @@ export default defineNuxtConfig({
       // without re-editing this file every time the random subdomain rotates.
       allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1', '.trycloudflare.com'],
     },
+    // Force-pre-bundle the biggest deps on dev startup instead of letting Vite
+    // discover them lazily on first request. lucide-vue-next alone exports 1000+
+    // individual icon modules (27 MB node_modules entry); reka-ui is ~15 MB of
+    // Radix-Vue primitives; @stripe/stripe-js is dynamic-imported at runtime but
+    // still gets discovered when pay.vue is visited. Listing them here moves the
+    // bundling cost from "first page load after green" into startup, where rundev
+    // is already waiting.
+    optimizeDeps: {
+      include: [
+        'lucide-vue-next',
+        'reka-ui',
+        '@stripe/stripe-js',
+        '@vueuse/core',
+        'class-variance-authority',
+        'clsx',
+        'tailwind-merge',
+      ],
+    },
   },
   compatibilityDate: '2025-10-15',
 
