@@ -31,11 +31,16 @@ const errorMsg = computed(() => {
 const signingIn = ref(false)
 let popupRef: Window | null = null
 let messageHandler: ((ev: MessageEvent) => void) | null = null
+let closeWatcher: ReturnType<typeof setInterval> | null = null
 
 function cleanup() {
   if (messageHandler) {
     window.removeEventListener('message', messageHandler)
     messageHandler = null
+  }
+  if (closeWatcher) {
+    clearInterval(closeWatcher)
+    closeWatcher = null
   }
   try { popupRef?.close() } catch { /* ignore */ }
   popupRef = null
@@ -81,6 +86,23 @@ function signIn() {
     }
   }
   window.addEventListener('message', messageHandler)
+
+  // If the user manually closes the popup without the flow finishing (X'd the
+  // window, or closed after a non-allowlisted Google email), nothing
+  // postMessages us and the UI would sit in "Se așteaptă autentificarea…"
+  // forever. Poll popup.closed; on close, give postMessage one more tick
+  // to deliver, then reset.
+  closeWatcher = setInterval(() => {
+    if (!popup.closed) return
+    clearInterval(closeWatcher!)
+    closeWatcher = null
+    setTimeout(() => {
+      if (!signingIn.value) return // message already handled
+      cleanup()
+      if (!errorCode.value) errorCode.value = 'popup_closed'
+      signingIn.value = false
+    }, 400)
+  }, 400)
 }
 
 onBeforeUnmount(cleanup)

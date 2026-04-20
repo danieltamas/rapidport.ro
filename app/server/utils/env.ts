@@ -43,12 +43,17 @@ const EnvSchema = z.object({
   SMARTBILL_CIF: z.string().min(1).default('RO00000000'),
   SMARTBILL_SERIES: z.string().min(1).default('RAPIDPORT'),
 
-  // Scheduled-jobs opt-out for dev (prevents double-firing when two Nitro processes
-  // share the DB). Default true in prod; set false in a second local dev shell.
+  // Scheduled jobs (cleanup cron + smartbill sweep + email sweep). On in prod
+  // by default, OFF in dev because pg-boss keeps a connection pool plus a
+  // worker subscriber per queue — noticeable memory + socket overhead when
+  // you're just iterating on UI. Opt in via SCHEDULER_ENABLED=true in dev.
   SCHEDULER_ENABLED: z
     .string()
-    .transform((s) => s.toLowerCase() !== 'false')
-    .default('true'),
+    .optional()
+    .transform((s) => {
+      if (s === undefined) return process.env.NODE_ENV === 'production';
+      return s.toLowerCase() === 'true' || s === '1';
+    }),
 });
 
 export const env = EnvSchema.parse(process.env);

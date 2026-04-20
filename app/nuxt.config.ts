@@ -28,6 +28,23 @@ export default defineNuxtConfig({
 
   debug: process.env.NODE_ENV === 'development',
 
+  // Dev memory footprint controls — parity with the wam.3.0 / wam.4.0 configs.
+  // Before these, this project's `nuxt dev` sat at ~1 GB RSS while other Nuxt
+  // projects on the same machine ran at ~300–400 MB. Each setting below targets
+  // a specific retention source:
+  //  - sourcemap: false  → sourcemaps are held in memory per source module; HMR
+  //                        round-trips compound it. Biggest single win.
+  //  - experimental.watcher: 'chokidar' → the default `parcel` watcher on macOS
+  //                        allocates per-file FS handles + kernel event queues
+  //                        that balloon with a big node_modules tree.
+  //  - experimental.appManifest: false → removes one more watcher + a build-time
+  //                        manifest that's useless for a non-PWA app.
+  sourcemap: false,
+  experimental: {
+    watcher: 'chokidar',
+    appManifest: false,
+  },
+
   app: {
     head: {
       htmlAttrs: {
@@ -69,6 +86,10 @@ export default defineNuxtConfig({
     experimental: {
       websocket: true,
     },
+    // Skip Nitro's auto-regenerated tsconfig — every dev restart rewrote it,
+    // which churned the TS server cache. Our own tsconfig extends .nuxt/tsconfig
+    // so this is safe.
+    typescript: { generateTsConfig: false },
     // CORS for /api/**. Dev allows the rapidport.ro reverse-proxy origin + localhost;
     // prod locks to the canonical origin. Credentials: true so cookies flow through.
     routeRules: {
