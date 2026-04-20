@@ -6,6 +6,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ---
 
+## 2026-04-21
+
+### fix(ui): wire upload page submit — button was dead
+
+Dani reported: "added the file for upload, nothing happens, no upload." Root cause: `app/pages/upload.vue` "Continuă spre validare" `<Button>` had no `@click` handler. File selection worked (drag/drop + picker both populated `file.value`), but the primary action was a pure visual — no `/api/jobs` POST, no `/api/jobs/{id}/upload` PUT, no navigation.
+
+Fix: added `submit()` that POSTs `/api/jobs` with `{sourceSoftware, targetSoftware}`, multipart-PUTs the archive to `/api/jobs/{id}/upload`, then `navigateTo('/job/{id}/discovery')`. CSRF token lifted from `rp_csrf` cookie and sent as `x-csrf-token` header (same pattern as `login.vue:49-53`). Loading state + Romanian error copy for 413 / 415 / 429 / generic failure.
+
+**"Auto-detect" handling** — backend `/api/jobs` requires explicit source/target enums that must differ; no 'auto' on the schema. When the user picks "Detectează automat" the page infers from extension: `.tgz` / `.tar.gz` → `winmentor`→`saga`, anything else (`.zip` / `.7z` / `.rar`) → `saga`→`winmentor`. Worker discovery still validates the archive contents and can flag a mismatch. **Open question for Dani:** confirm heuristic or relax the API to accept null/auto and defer direction to worker.
+
+Files: `app/pages/upload.vue` (single-file change). DONE: `jobs/fix-upload-wire/DONE-ui-wire-button.md`.
+
+---
+
 ## 2026-04-20
 
 ### perf(dev): split nuxt-security prod/dev — materially faster cold boot
