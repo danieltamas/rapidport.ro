@@ -36,6 +36,9 @@ const querySchema = z.object({
   status: statusEnum.optional(),
   q: z.string().trim().min(1).max(200).optional(),
   refunded: refundedEnum.optional(),
+  // Optional filter for all payments belonging to a specific user (via
+  // jobs.user_id). Used by the user-detail "View all" link.
+  userId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).max(1000).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(50),
   sort: sortEnum.optional().default('createdAt'),
@@ -88,6 +91,14 @@ export default defineEventHandler(async (event) => {
     // refundedAmount > 0 AND refundedAmount < amount
     where.push(gt(payments.refundedAmount, 0));
     where.push(sql`${payments.refundedAmount} < ${payments.amount}`);
+  }
+
+  if (filters.userId) {
+    // Explicit filter (never wildcard through `q`): restricts to payments
+    // linked to jobs owned by a specific user. Uses the leftJoin already
+    // present below — jobs.user_id is NOT NULL so the left→inner narrowing
+    // is fine.
+    where.push(eq(jobs.userId, filters.userId));
   }
 
   const whereExpr = where.length > 0 ? and(...where) : undefined;

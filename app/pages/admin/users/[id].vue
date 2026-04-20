@@ -41,6 +41,20 @@ type JobRow = {
   createdAt: string
 }
 
+type PaymentRow = {
+  id: string
+  jobId: string
+  stripePaymentIntentId: string | null
+  amount: number
+  currency: string
+  status: string
+  refundedAmount: number
+  refundedAt: string | null
+  smartbillInvoiceId: string | null
+  smartbillInvoiceUrl: string | null
+  createdAt: string
+}
+
 type Stats = {
   jobsTotal: number
   paymentsTotal: number
@@ -52,6 +66,7 @@ type DetailResponse = {
   user: UserDetail
   stats: Stats
   recentJobs: JobRow[]
+  recentPayments: PaymentRow[]
 }
 
 const route = useRoute()
@@ -121,6 +136,33 @@ function jobStatusBadgeClass(s: string): string {
     default:
       return `${base} border-border text-muted-foreground bg-muted/30`
   }
+}
+
+// Payment status has its own badge palette (narrower set than job.status).
+function paymentStatusBadgeClass(s: string): string {
+  const base = 'inline-block rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide'
+  switch (s) {
+    case 'succeeded':
+      return `${base} border-emerald-500/40 text-emerald-400 bg-emerald-500/10`
+    case 'failed':
+    case 'canceled':
+      return `${base} border-destructive/50 text-destructive bg-destructive/10`
+    default:
+      return `${base} border-border text-muted-foreground bg-muted/30`
+  }
+}
+
+function formatAmount(bani: number, currency: string): string {
+  return `${RON_FORMATTER.format((bani ?? 0) / 100)} ${(currency ?? 'RON').toUpperCase()}`
+}
+
+function formatRefund(bani: number, currency: string): string {
+  if (!bani || bani <= 0) return '—'
+  return formatAmount(bani, currency)
+}
+
+function smartbillUrl(invoiceId: string): string {
+  return `https://cloud.smartbill.ro/ro/invoice/${encodeURIComponent(invoiceId)}`
 }
 
 function readCsrf(): string {
@@ -438,6 +480,75 @@ const deleteDisabled = computed(() => isDeleted.value)
             </template>
             <TableEmpty v-else :colspan="4">
               <span class="text-muted-foreground">No jobs recorded.</span>
+            </TableEmpty>
+          </TableBody>
+        </Table>
+      </div>
+
+      <!-- Payments -->
+      <div class="mt-6 mb-2 flex items-center justify-between">
+        <div class="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+          Payments
+        </div>
+        <NuxtLink
+          v-if="data.recentPayments.length > 0"
+          :to="`/admin/payments?userId=${data.user.id}`"
+          class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          View all →
+        </NuxtLink>
+      </div>
+      <div class="border border-border rounded overflow-x-auto bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[11rem]">Stripe Intent</TableHead>
+              <TableHead class="w-[7rem]">Job</TableHead>
+              <TableHead class="text-right w-[9rem]">Amount</TableHead>
+              <TableHead class="w-[8rem]">Status</TableHead>
+              <TableHead class="text-right w-[9rem]">Refunded</TableHead>
+              <TableHead class="w-[7rem]">Invoice</TableHead>
+              <TableHead class="w-[12rem]">Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-if="data.recentPayments.length > 0">
+              <TableRow v-for="p in data.recentPayments" :key="p.id">
+                <TableCell class="font-mono text-xs">{{ shortHex(p.stripePaymentIntentId, 14) }}</TableCell>
+                <TableCell>
+                  <NuxtLink
+                    :to="`/admin/jobs/${p.jobId}`"
+                    class="font-mono text-xs text-primary hover:underline"
+                  >
+                    {{ shortHex(p.jobId, 8) }}
+                  </NuxtLink>
+                </TableCell>
+                <TableCell class="font-mono text-xs text-right tabular-nums">
+                  {{ formatAmount(p.amount, p.currency) }}
+                </TableCell>
+                <TableCell>
+                  <span :class="paymentStatusBadgeClass(p.status)">{{ p.status }}</span>
+                </TableCell>
+                <TableCell class="font-mono text-xs text-right tabular-nums">
+                  {{ formatRefund(p.refundedAmount, p.currency) }}
+                </TableCell>
+                <TableCell class="font-mono text-xs">
+                  <a
+                    v-if="p.smartbillInvoiceId"
+                    :href="p.smartbillInvoiceUrl ?? smartbillUrl(p.smartbillInvoiceId)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary hover:underline"
+                  >
+                    {{ p.smartbillInvoiceId }}
+                  </a>
+                  <span v-else class="text-muted-foreground">—</span>
+                </TableCell>
+                <TableCell class="font-mono text-xs">{{ formatDate(p.createdAt) }}</TableCell>
+              </TableRow>
+            </template>
+            <TableEmpty v-else :colspan="7">
+              <span class="text-muted-foreground">No payments recorded.</span>
             </TableEmpty>
           </TableBody>
         </Table>

@@ -8,6 +8,22 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### feat(admin): user-detail surfaces payments list + admin/payments accepts ?userId=
+
+Closed out `jobs/phase2-nuxt/TODO-admin-user-detail-payments.md`. Admin user-detail (`/admin/users/[id]`) was showing four stat counters + a recent-jobs table but no individual payments — admins had to cross-reference `/admin/payments` by email or job id.
+
+**Server:**
+- `app/server/api/admin/users/[id].get.ts` — sixth parallel query returns the last 20 payments for a user (inner join `payments` × `jobs` on `jobs.user_id = id`, ordered `payments.created_at DESC`). Response carries a new `recentPayments` array with `{id, jobId, stripePaymentIntentId, amount, currency, status, refundedAmount, refundedAt, smartbillInvoiceId, smartbillInvoiceUrl, createdAt}`.
+- `app/server/api/admin/payments/index.get.ts` — added optional `userId: z.string().uuid()` to the query schema. When set, adds `eq(jobs.userId, filters.userId)` to the existing WHERE (reuses the `leftJoin(jobs)` already on the query).
+
+**Client:**
+- `app/pages/admin/users/[id].vue` — new "Payments" section below "Recent jobs" with the same column shape as `/admin/payments`: Stripe Intent, Job (link), Amount, Status, Refunded, Invoice, Created. "View all →" link in the section header points to `/admin/payments?userId=<userId>` when non-empty. Empty state: "No payments recorded."
+- `app/pages/admin/payments/index.vue` — reads `userId` from the URL, includes it in `queryParams` (so it flows into `useAsyncData` and URL sync), and renders a small "user: <uuid> ✕" pill above the filter bar when active. The pill links back to the user-detail page and has a clear button. Explicit filter — not a control in the filter bar — chosen over extending `q` wildcard match (sub-todo option B in the TODO).
+
+No schema, no migrations, no new deps. Audit coverage unchanged (`user_viewed` + `payments_list_viewed` both run; the latter now captures `userId` in `filters`).
+
+DONE report: `jobs/phase2-nuxt/DONE-admin-user-detail-payments.md`.
+
 ### fix(account): idempotent DELETE /api/me/sessions/[id] + refresh on error
 
 Dani reported a 404 "Session not found" when clicking Revocă on an older session from `/account/security`, despite the row being visible in the list. DB check showed the session was already revoked (`revoked_at` set earlier in the day — likely by a prior "Deconectează celelalte" run or stale tab). The UI was rendering cached `useAsyncData` state; the DELETE handler correctly filtered on `isNull(revokedAt)` and returned 404.

@@ -56,6 +56,10 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100] as const
 const status = ref<string>(typeof route.query.status === 'string' ? route.query.status : 'all')
 const q = ref<string>(typeof route.query.q === 'string' ? route.query.q : '')
 const refunded = ref<string>(typeof route.query.refunded === 'string' ? route.query.refunded : 'all')
+// userId is set exclusively via the URL (the user-detail page links here with
+// `?userId=<uuid>`). It's not edited from the filter UI — instead we render a
+// small "filtered by user" pill with a clear button.
+const userId = ref<string>(typeof route.query.userId === 'string' ? route.query.userId : '')
 const page = ref<number>(Number(route.query.page) > 0 ? Number(route.query.page) : 1)
 const pageSize = ref<number>(Number(route.query.pageSize) > 0 ? Number(route.query.pageSize) : 25)
 const sort = ref<string>(typeof route.query.sort === 'string' ? route.query.sort : 'createdAt')
@@ -71,8 +75,14 @@ const queryParams = computed(() => {
   if (status.value && status.value !== 'all') p.status = status.value
   if (q.value.trim()) p.q = q.value.trim()
   if (refunded.value && refunded.value !== 'all') p.refunded = refunded.value
+  if (userId.value) p.userId = userId.value
   return p
 })
+
+function clearUserFilter() {
+  userId.value = ''
+  resetPage()
+}
 
 const { data, pending, error, refresh } = useAsyncData<PaymentsResponse>(
   'admin-payments',
@@ -185,6 +195,27 @@ function smartbillUrl(invoiceId: string): string {
       >
         {{ pending ? 'Refreshing…' : 'Refresh' }}
       </button>
+    </div>
+
+    <!-- Active user filter pill (only when the page was reached from user-detail). -->
+    <div v-if="userId" class="mb-3 flex items-center gap-2 text-xs">
+      <span class="inline-flex items-center gap-2 rounded border border-border bg-muted/30 px-2.5 py-1 font-mono">
+        <span class="text-muted-foreground">user:</span>
+        <NuxtLink
+          :to="`/admin/users/${userId}`"
+          class="text-primary hover:underline"
+        >
+          {{ userId }}
+        </NuxtLink>
+        <button
+          type="button"
+          class="text-muted-foreground hover:text-foreground ml-1"
+          aria-label="Clear user filter"
+          @click="clearUserFilter"
+        >
+          ✕
+        </button>
+      </span>
     </div>
 
     <!-- Filter bar -->

@@ -176,7 +176,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   │       └── index.delete.ts         # paid-job guard; rm -rf upload dir; null PII; audit
 │   │   │   │   ├── users/
 │   │   │   │   │   ├── index.get.ts         # paginated list, state filter (active|blocked|deleted)
-│   │   │   │   │   ├── [id].get.ts          # detail + jobs/payments stats + last 10 jobs
+│   │   │   │   │   ├── [id].get.ts          # detail + jobs/payments stats + last 10 jobs + last 20 payments
 │   │   │   │   │   ├── [id].delete.ts       # admin-initiated GDPR purge — calls purgeUserData()
 │   │   │   │   │   └── [id]/
 │   │   │   │   │       ├── grant-syncs.post.ts     # bump deltaSyncsAllowed for all of user's jobs
@@ -185,7 +185,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── ai/
 │   │   │   │   │   └── index.get.ts         # trend30d (daily ai_usage groupby) + lowConfidenceMappings (cache < 0.7) + topUnmappedFields=[] (TODO worker)
 │   │   │   │   ├── payments/
-│   │   │   │   │   └── index.get.ts         # GET /api/admin/payments — paginated list w/ jobs leftJoin (billingEmail), refund filter
+│   │   │   │   │   └── index.get.ts         # GET /api/admin/payments — paginated list w/ jobs leftJoin (billingEmail), refund filter, ?userId=<uuid> filter
 │   │   │   │   ├── profiles/
 │   │   │   │   │   ├── index.get.ts         # list mapping_profiles (no `mappings` jsonb in response)
 │   │   │   │   │   └── [id]/
