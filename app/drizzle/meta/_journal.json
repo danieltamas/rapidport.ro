@@ -36,6 +36,13 @@
       "when": 1776680001968,
       "tag": "0004_tricky_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776684000136,
+      "tag": "0005_perfect_madame_masque",
+      "breakpoints": true
     }
   ]
 }

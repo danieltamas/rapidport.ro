@@ -15,6 +15,7 @@ import { runCleanupJobsFiles } from '../utils/schedule-tasks/cleanup-jobs-files'
 import { runCleanupOauthState } from '../utils/schedule-tasks/cleanup-oauth-state';
 import { runCleanupRateLimits } from '../utils/schedule-tasks/cleanup-rate-limits';
 import { runCleanupOrphanFiles } from '../utils/schedule-tasks/cleanup-orphan-files';
+import { runEmailNotificationSweep } from '../utils/schedule-tasks/email-notification-sweep';
 import { runSmartBillInvoiceSweep } from '../utils/schedule-tasks/smartbill-invoice-sweep';
 
 type JobDef = {
@@ -29,6 +30,7 @@ const JOBS: JobDef[] = [
   { name: 'cleanup.rate-limits', cron: '0 * * * *', run: runCleanupRateLimits },
   { name: 'cleanup.orphan-files', cron: '0 3 * * *', run: runCleanupOrphanFiles },
   { name: 'smartbill.invoice-sweep', cron: '*/5 * * * *', run: runSmartBillInvoiceSweep },
+  { name: 'email.notification-sweep', cron: '*/2 * * * *', run: runEmailNotificationSweep },
 ];
 
 async function runTask(def: JobDef): Promise<void> {
