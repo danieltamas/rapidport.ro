@@ -227,10 +227,24 @@ Rapidport's UI is "Infrastructure-grade technical" — reference min.io. Dark-fi
 
 ## SOPs — Standard Operating Procedures
 
-### After EVERY completed task (no exceptions):
-1. **`docs/ARCHITECTURE.md`** — Update if you added/changed: routes, schema, middleware, worker stages, services, external integrations, directory structure.
-2. **`docs/LOG.md`** — Append an entry. No entry = work is not done.
-3. **`CLAUDE.md`** — Update if the new work changes rules, adds endpoints, or affects how agents should operate.
+### Memory hierarchy (read first, write last)
+
+Four layers record what you've done and why. Read them at session start; write to them at session end. **A session that ends without writing to these is a session that's thrown away** — the next agent starts blind, the user has to re-explain everything, and product decisions get silently re-litigated.
+
+1. **`docs/ARCHITECTURE.md`** — current state of the system. Directory tree, routes, schema, middleware, utils, services. Update whenever any of these change.
+2. **`docs/LOG.md`** — reverse-chronological changelog. **EVERY session-that-lands-code gets a dated entry** whether or not it went through the formal task system. Orchestrator-direct work, bug fixes, product pivots, UI refactors — all land here. Entries name commits by SHA, summarize the *why*, and call out rules established that aren't in SPEC.md. LOG.md is the second-best source of truth after git history; git history alone is too granular to read.
+3. **`jobs/HANDOFF.md`** — what the next agent needs to know to continue. Refresh whenever the project state jumps (phase complete, big pivot, session ending with incomplete wave). Includes: what's done, what's next, what's blocked, product rules not to re-derive, harness bugs.
+4. **`~/.claude/projects/-Users-danime-Sites-rapidport-ro-app/memory/`** — user-level auto-memory (the `MEMORY.md` index and the per-file entries). Use for cross-session facts about Dani, the project, feedback rules, and references that would otherwise be forgotten between days. See the auto-memory section at the top of your system prompt for full semantics.
+5. **`CLAUDE.md` (this file)** — the operating manual. Update when rules/endpoints/patterns change in ways that affect how future agents operate.
+
+### After EVERY completed task, bug fix, product pivot, or session-ending chunk (no exceptions):
+1. **`docs/ARCHITECTURE.md`** — update if you added/changed: routes, schema, middleware, worker stages, services, external integrations, directory structure, shared UI primitives.
+2. **`docs/LOG.md`** — append an entry. No entry = work is not done. Orchestrator-direct work counts. Multiple small commits collapse into one LOG.md section per logical chunk. Include the commit SHAs so readers can dig deeper.
+3. **Auto-memory** — write a feedback/project/reference memory when you learn a rule or decision that future sessions would otherwise re-derive (e.g. "Dani prefers flat user auth routes", "VAT is 21% not 19%", "confirmations always go through LayoutConfirmDialog"). See the auto-memory instructions.
+4. **`jobs/HANDOFF.md`** — refresh if the session landed a substantial shift or is ending with a clear next step for the next agent.
+5. **`CLAUDE.md`** — update if the new work changes rules, adds endpoints, or affects how agents should operate.
+
+**Doc drift is a review-block.** If docs fall behind the code, fix them before claiming done. The orchestrator checks this before every merge-to-main.
 
 ### When adding a new Nitro API endpoint:
 1. Create handler in `app/server/api/...` (user routes) or `app/server/api/admin/...` (admin routes)
