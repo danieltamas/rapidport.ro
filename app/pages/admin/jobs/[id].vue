@@ -259,7 +259,7 @@ function submitRerun() {
 </script>
 
 <template>
-  <div class="px-6 py-6 max-w-[1400px] mx-auto">
+  <div class="px-4 md:px-6 py-6 max-w-[1400px] mx-auto">
     <div class="flex items-end justify-between gap-4 mb-6">
       <div class="flex items-center gap-3">
         <NuxtLink to="/admin/jobs" class="text-xs text-muted-foreground hover:text-foreground transition-colors">
