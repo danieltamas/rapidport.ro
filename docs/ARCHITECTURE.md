@@ -135,9 +135,15 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── sessions.delete.ts       # revoke all except current
 │   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
 │   │   │   ├── webhooks/
-│   │   │   │   └── stripe.post.ts           # Stripe webhook receiver — HMAC verify, 5-min replay window, dedup via stripe_events, payment_intent.succeeded → mark paid+queued + publishConvert
+│   │   │   │   └── stripe.post.ts           # Stripe webhook receiver — HMAC verify, 5-min replay window, dedup via stripe_events, payment_intent.succeeded → mark paid+queued + publishConvert + payment-confirmed email
 │   │   │   ├── admin/
-│   │   │   │   └── logout.post.ts           # revokeAdminSession + audit
+│   │   │   │   ├── logout.post.ts           # revokeAdminSession + audit
+│   │   │   │   ├── stats.get.ts             # GET /api/admin/stats — 7 dashboard numbers (jobs counts, revenue, AI cost, users) over 30d window
+│   │   │   │   ├── jobs/
+│   │   │   │   │   ├── index.get.ts         # GET /api/admin/jobs — paginated list, Zod filters, whitelisted sort
+│   │   │   │   │   └── [id].get.ts          # GET /api/admin/jobs/[id] — full join (job + payments + audit), audit row written first
+│   │   │   │   └── payments/
+│   │   │   │       └── index.get.ts         # GET /api/admin/payments — paginated list w/ jobs leftJoin (billingEmail), refund filter
 │   │   │   └── jobs/
 │   │   │       ├── index.post.ts            # POST /api/jobs — Zod {source,target,billingEmail?}; mints anon token; sets cookie; 10/hr/IP rate limit
 │   │   │       ├── [id].get.ts              # GET  /api/jobs/[id] — assertJobAccess first; strips anonymousAccessToken from response

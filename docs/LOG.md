@@ -8,6 +8,30 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-admin` Wave A — 4 read-only admin endpoints
+
+**Merge:** group `job/phase2-nuxt/api-admin` → main, --no-ff.
+
+**Task commits (squashed):**
+- `feat(admin): GET /api/admin/stats — dashboard numbers + audit`
+- `feat(admin): GET /api/admin/jobs — list w/ filters + pagination + audit`
+- `feat(admin): GET /api/admin/jobs/[id] — full join + audit`
+- `feat(admin): GET /api/admin/payments — list w/ filters + audit`
+
+**Summary:** 4 parallel workers. 2 clean (jobs-detail `e50029c`, payments `ea4e9f8`); 1 salvaged from main-checkout files (jobs-list); 1 fully orchestrator-direct (stats — worker hit Bash-denied + a stale-base worktree that hid all admin schemas).
+
+**New endpoints (all under `/api/admin/*`, guarded by `middleware/admin-auth.ts`, every handler writes one `admin_audit_log` row):**
+- `GET /api/admin/stats` — 7 live counts/sums via `Promise.all` over a 30-day window: `jobsTotal`, `jobsPaidLast30d`, `jobsSucceededLast30d`, `jobsFailedLast30d`, `revenueLast30dBani`, `aiCostLast30dUsd`, `usersTotal`. Numbers-only response.
+- `GET /api/admin/jobs` — paginated list with Zod-validated filters (status, q, page/pageSize, sort/order — sort column whitelisted). `anonymousAccessToken` stripped from rows. Separate `count(*)::int` for `total`.
+- `GET /api/admin/jobs/[id]` — `Promise.all` over `jobs`, `payments`, last-50 `audit_log` rows. Admin sees everything (including `anonymousAccessToken` — they're admin). Audit row inserted BEFORE data fetch.
+- `GET /api/admin/payments` — paginated list with leftJoin onto `jobs` for `billingEmail`. Filters: status, q (matches stripePaymentIntentId or jobId), refunded (yes/no/partial via `refundedAmount` comparison).
+
+**Process notes:**
+- Confirmed harness Bash-denied issue is recurring; 1 of 4 workers needed full reconstruction. Worker prompts now consistently ship a "salvage authorization" clause that lets the worker write files via Write tool only — Worker 2 used this path successfully.
+- One harness side-effect: my main-checkout CWD drifted into a worker's worktree mid-flow (`pwd` printed `.claude/worktrees/agent-a6958155/`). Recovered via `cd /Users/danime/Sites/rapidport.ro/app`. Future orchestrator turns should re-`pwd` after long worker waves.
+
+Wave B (jobs-actions, users, ai, misc — includes the refund/delete mutations) NOT yet dispatched — pausing for Dani's go since Wave B touches destructive admin actions.
+
 ### `payment-confirmed` email + email copy doc
 
 **Merge commit:** `cd00697`. Single-agent.
