@@ -1,202 +1,252 @@
-# Handoff — Phase 1 complete, Phase 2 ready to start
+# Handoff — Phase 2 auth complete, api-jobs is the next wave
 
-**Date:** 2026-04-19 | **Last orchestrator session:** Phase 1 end-to-end (bootstrap → gate) | **Next:** Phase 2 planning
+**Date:** 2026-04-20 | **Last orchestrator session:** PIN auth + account dashboard + GDPR export/delete + nuxt-security + product clarifications | **Next:** api-jobs wave
 
-Read this first in the new session. Then read `jobs/INDEX.md` and `jobs/phase1-worker/GATE.md`.
+Read this first in the new session. Then read `jobs/INDEX.md` and `jobs/phase2-nuxt/JOB.md`.
 
 ---
 
 ## One-glance status
 
-| Phase | State | Notes |
+| Group | State | Notes |
 |---|---|---|
-| 0 Discovery | ✅ done | Merged 2026-04-18. Samples in `samples/` (gitignored). Artifacts in `docs/` + `docs/adr-001-code-mapping.md` + `docs/questions-for-dani.md`. |
-| 1 Worker (Python) | ✅ done | Merged 2026-04-19. Gate passed with deferrals. 7,409 lines across 21 modules under `worker/`. `jobs/phase1-worker/GATE.md` is the truth source. |
-| 2 Nuxt | 🟢 bootstrap done; remaining groups unblocked | `jobs/phase2-nuxt/JOB.md` has the full plan. First task in the new session: read JOB.md, map file-disjoint waves. |
+| 0 Discovery | ✅ done | Merged 2026-04-18. See `docs/saga-schemas.md`. |
+| 1 Worker | ✅ done | Merged 2026-04-19. `worker/` on main. See `jobs/phase1-worker/GATE.md`. |
+| 2.bootstrap | ✅ done | 7/7 merged 2026-04-17. |
+| 2.security-baseline | ✅ done | 3/3 merged 2026-04-19. **Note: `security-headers.ts` middleware was DELETED and replaced by nuxt-security module** — see "Big shifts" below. |
+| 2.schema | ✅ done | 6/6 merged 2026-04-19. 12 tables + 2 migrations. |
+| 2.auth-user | ✅ done | 5/5 merged 2026-04-19. |
+| 2.auth-admin | ✅ done | 4/4 merged 2026-04-19. |
+| **2.api-jobs** | ⏭️ **next up** | 8 handler tasks. Most parallelizable. See "Next wave" below. |
+| 2.api-webhooks | blocked on SPEC Q#1/Q#3 for smartbill-client; stripe-client ready | |
+| 2.api-admin | unblocked | 8 admin endpoints. |
+| 2.pages-public | partially done outside the job system | Landing, upload, legal already exist (pre-dated); missing `/job/[id]/status`, `/job/[id]/result`. The login/verify/account pages were already built + later refactored heavily in this session (see "What's on main that wasn't tasked"). |
+| 2.pages-admin | blocked on api-admin | 8 admin pages. Stubs exist for `/admin/login` + `/admin` (shipped in this session). |
+| 2.gdpr-cleanup | **partially done** | `DELETE /api/me` ✓ (GET /api/me/export ✓) — **shipped this session, not via the formal gdpr-cleanup group**. Still missing: the pg-boss cleanup cron (30-day file sweep, `admin_oauth_state` expiry, `rate_limits` pruning, orphan files). |
+| 2.email-guide | blocked | 3 tasks: Resend wrapper (done in Wave 3 B prep!), templates (mostly stubs), SAGA import guide PDF. |
+| 2.i18n, observability, infra, ci-tests, gate | not started | |
 
 ---
 
-## Workflow model that worked in Phase 1
+## What's on main that wasn't in JOB.md
 
-Dani's rule: **"no two workers on the same file, ever."** Single biggest source of waste was parallelism-promised-by-JOB.md-but-actually-shared-files.
+This session did more than just the formal groups. Be aware before reading JOB.md literally:
 
-**Always audit file footprints before spawning waves.** JOB.md rows often say "parallel" but list the same file in "Files touched". Combine those tasks into one worker or split files.
+### 1. Product pivots (read before writing any UI task)
 
-### Typical wave shape that shipped Phase 1:
-- **Wave 1 (sequential):** scaffolding / foundation task that everyone depends on (`bootstrap-pyproject` style).
-- **Wave 2 (parallel, 3-4 workers):** infra tasks that branch off the foundation (Dockerfile, logger, DB migration — each on its own file).
-- **Wave 3+ (parallel, up to 9 workers):** feature modules — one worker per file, cross-imports resolved at merge time via `TYPE_CHECKING` forward refs or deferred import patterns.
-- **Remediation waves as needed:** post-gate gap-close, always file-disjoint.
-- **Gate wave:** 1 worker, verification-only, orchestrator-direct is often faster (see "Harness bugs" below).
+- **Magic-link → 6-digit PIN**. The flow is no longer a clickable URL; `POST /api/auth/magic-link` emits a 6-digit code and `POST /api/auth/verify` takes `{ email, code }`. `pages/login.vue` is a two-step form (email → PinInput). Reason: Microsoft Safe Links / Proofpoint prefetch single-use URLs. Email subject + body reflect this; the `/verify` Vue page was removed. **Old SPEC.md copy mentioning `/auth/verify?token=xyz` links has been updated, but anything you generate from memory should use the code flow.**
+- **Flat user-facing auth routes**. `/login` (not `/auth/login`), no user `/verify` page. Admin stays at `/admin/login`. API routes unchanged (`/api/auth/*`).
+- **`/profiles` is dead**. Replaced by `/account` as a real dashboard with sub-pages:
+  - `/account` — dashboard (stats, recent migrations, recent invoices, quick links)
+  - `/account/migrations` — full migration history
+  - `/account/invoices` — SmartBill invoices with PDF download
+  - `/account/profiles` — mapping-profile overrides (advanced, de-emphasized)
+  - `/account/security` — account info, sessions list, data export, account deletion
+- **Mapping profile "visibility" is gone from the user surface.** The `mapping_profiles.isPublic` + `adoptionCount` columns still exist in schema, but they're admin-only now (curation tool in `/admin/profiles`). Rationale: user-facing "public vs private" toggle was cognitive overhead for a thing that should be learned invisibly via `mapping_cache`. See discussion in the session transcript if this ever comes up.
+- **VAT 21%** (not 19%). Updated across all user-facing pages. Worker code still references 19% historically — that's fine because worker VAT comes from source invoices at runtime, not defaults.
+- **Bidirectional framing everywhere**. "WinMentor ⇄ SAGA, în ambele direcții". Stats/steps/FAQ on landing updated. Steps say "software sursă" / "software destinație" rather than naming either. Email footer updated.
 
-### Orchestrator patterns that paid off
-- **Seal all `__init__.py` as empty** at scaffolding time. Direct imports (`from migrator.utils.logger import X`) — never re-export through `__init__.py`. Eliminates a whole class of merge conflicts.
-- **Pre-create task branches** with `git branch <task> <group>` (no checkout). Workers checkout inside their worktree.
-- **Squash-merge task → group one at a time.** Never batch. Commit per task with narrative message.
-- **Merge group → main with `--no-ff`** to preserve the group's identity in history.
-- **Cleanup worktrees before every group switch.** The `worktree-agent-*` orphans accumulate and lock branches.
+### 2. Middleware posture changes
 
-### Prompt template distilled
-Every worker prompt got:
-1. Branch name (pre-created by orchestrator)
-2. Exact file(s) they can touch + exact files they CAN'T touch (siblings in parallel)
-3. Public API sketch (function signatures, Pydantic model shapes)
-4. Imports allowlist
-5. Line-count cap (prevents feature creep)
-6. Log event names (prefer snake_case verbs)
-7. DONE report filename (must be written before exit)
-8. Commit granularity hint (usually 2-3 commits)
-9. Hard rules about NOT touching `__init__.py`, other modules, pyproject, Dockerfile, etc.
+- **`server/middleware/security-headers.ts` was DELETED.** It conflicted with the nuxt-security module we now use. nuxt-security owns HSTS/CSP/X-Frame/Referrer/Permissions/nonces.
+- **nuxt-security module** is configured in `nuxt.config.ts` with per-request nonces, `strict-dynamic`, Stripe + Google OAuth origins allowlisted. `rateLimiter: false` and `csrf: false` because we keep our own (`middleware/csrf.ts` + `middleware/rate-limit.ts`) which match SPEC semantics.
+- **`server/middleware/user-auth.ts` is new.** Guards `/account` + `/account/*` (page redirect to `/login?next=<path>`) and `/api/me/*` + `/api/account/*` (JSON 401). Disjoint from admin-auth.
+- **`admin-auth.ts` now redirects** to `/admin/login` on page auth failure (used to throw 401). API paths still 401.
+
+### 3. New endpoints not in JOB.md
+
+Shipped during this session, orchestrator-direct:
+- `GET /api/auth/session` — current user session for header rendering
+- `DELETE /api/auth/session` — user logout
+- `GET /api/me/account` — email + createdAt for the Cont panel
+- `GET /api/me/sessions` — list active sessions (marks current)
+- `DELETE /api/me/sessions` — revoke all except current
+- `DELETE /api/me/sessions/[id]` — revoke specific
+- `GET /api/me/export` — full GDPR JSON dump, streamed as attachment
+- `DELETE /api/me` — GDPR account deletion (soft-delete users, revoke sessions, null audit_log.userId, delete mapping_profiles, burn magic-link tokens, jobs+payments kept for legal retention)
+
+Also new shared clients under `app/server/utils/`:
+- `email.ts` — single-instance Resend wrapper (`sendEmail()`)
+- `google-oauth.ts` — PKCE + authorize URL + code exchange + userinfo (raw fetch, no SDK)
+
+### 4. UI primitives and patterns
+
+- **`components/layout/ConfirmDialog.vue`** — reusable destructive/default confirm modal with loading spinner, cancel, fade+zoom transitions (I patched `DialogContent.vue` to drop shadcn's default sideways-slide animation). Used by logout, session revoke, revoke-all-sessions, account delete. **Use this for all confirmation UIs** going forward; don't inline `<Dialog>` instances.
+- **`components/ui/pin-input/`** — shadcn-vue PinInput generated via CLI. Used by `/login` step 2. Paste-to-distribute + auto-verify on complete.
+- **`components/ui/input/Input.vue`** — switched from `useVModel` passive pattern to `defineModel`. The old pattern was silently not propagating v-model from parents (first keystroke didn't enable submit buttons). All new shadcn-vue Input consumers benefit.
+- **`error.vue`** — branded 404/500 page at `app/error.vue` with SiteHeader + SiteFooter, Romanian copy, working `clearError({ redirect: '/' })` button.
+
+### 5. SSR cookie forwarding
+
+When a Vue page calls its own `/api/...` during SSR, Nuxt's `$fetch` does **NOT** automatically forward the incoming request cookies. This broke session awareness on every page that fetched `/api/auth/session` during SSR. Pattern now used across the codebase:
+
+```ts
+const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const { data } = await useAsyncData('session', () =>
+  $fetch<Shape>('/api/...', { headers }),
+)
+```
+
+If you see a page that renders as logged-out despite a valid session cookie, this is the first thing to check.
+
+### 6. `pages-admin` stubs
+
+`/admin/login` (Google OAuth entry) and `/admin` (placeholder home with logout) exist as minimal stubs so the OAuth loop has somewhere to land. Real dashboard is the `pages-admin` group's job.
 
 ---
 
-## Harness bugs / env quirks to work around
+## Harness bugs / env quirks (carry-forward from Phase 1 + this session)
 
-### 1. Agent worktrees sometimes base off stale commits
-Symptom: worker reports "branch missing" or "worker/ directory doesn't exist". Claude's `isolation: "worktree"` created the worktree from an old commit (usually `02a6024` — header fix era), not from the task branch I created.
+### 1. Worker worktrees sometimes base off stale commits / drift
+Documented in prior HANDOFF. Still happening occasionally in this session — one worker's `git add` was denied, another's shell CWD drifted into the main checkout. **Mitigation that worked:** orchestrator reconstructs small tasks directly when the harness flakes (did it for `auth-admin-logout`).
 
-**Mitigation:** worker prompt says "If branch doesn't exist, create from `<group>`". Workers that do `git checkout <task-branch>` succeed. The harness doesn't auto-place them on the named branch.
+### 2. Bash CWD drifts between `/app` and `/app/app`
+Especially after `cd app && npx nuxi typecheck` — the next Bash call may or may not be in `/app/app`. **Mitigation:** prefix multi-step commands with `cd /Users/danime/Sites/rapidport.ro/app/app &&` or `cd /Users/danime/Sites/rapidport.ro/app &&` explicitly.
 
-**When it hits:** the gate task hit this hard (worktree had no `worker/` at all). Orchestrator did the task directly. For pure verification/doc tasks, doing it orchestrator-direct is faster than fighting the harness.
+### 3. `useRequestHeaders(['cookie'])` MUST be passed explicitly on SSR fetches
+Otherwise auth state breaks. See §5 above.
 
-### 2. Bash permissions occasionally deny legitimate ops
-- `~/Library/Fonts/` read → denied. Fonts had to be copied by orchestrator, not worker.
-- `pip install` → denied (good, forces venv).
-- `brew install firebird` → denied on some sessions.
-- `python -m ruff` / `mypy` → denied in workers. They manually review; the gate verifies compliance.
+### 4. `nuxi typecheck` exit code is weird with pipes
+`npx nuxi typecheck | tail -X` can report STATUS=0 even on real errors. Run without pipe when validating.
 
-**Mitigation:** list blocked ops in the prompt. Tell the worker to STOP + report on permission denial, not to try alternate paths. Early session, a worker ran `pip install --break-system-packages` after a denial — caused cleanup work.
+### 5. Dialog animations
+Default shadcn-vue DialogContent has `slide-in-from-left-1/2` + `-translate-x-1/2` that combine weirdly. We dropped the slide classes in `DialogContent.vue`. If you regenerate via `npx shadcn-vue@latest add dialog`, the shadcn defaults will come back — re-apply the fix.
 
-### 3. "Prompt is too long" after 50-130 tool uses
-Workers hit a hard context cap during long tasks (cli.py, consumer.py, pipeline.py each died on wrap-up). The WORK was usually committed before the cap; only the final return-summary failed.
-
-**Mitigation:** always check `git log <task-branch>` after a "Prompt is too long" return. Often the work is there. Also: cap file sizes in the prompt (500 lines is plenty for most modules; if the worker is running long, the file is probably too big).
-
-### 4. CWD drifts during Bash calls
-After worktree cleanup or branch switching, the shell's effective CWD can end up somewhere it doesn't expect. Orchestrator kept hitting "Unable to read current working directory" and had to `cd /Users/danime/Sites/rapidport.ro/app` to recover.
-
-**Mitigation:** prefix multi-step Bash calls with `cd /abs/path &&`. Don't assume CWD persists across calls.
-
-### 5. Task branches get orphan worktree-agent-* branches attached
-Every `isolation: "worktree"` agent also creates a `worktree-agent-<id>` branch pointer that persists after the worktree is removed. Clean up with `git branch -D worktree-agent-*` after each wave.
+### 6. shadcn-vue CLI rejects `"framework": "nuxt"` key
+Dropped it from `app/components.json`. If the CLI throws on future `add` calls, check that.
 
 ---
 
-## Phase 1 carry-forwards (from GATE.md) — owner + deadline
+## Environment / secrets
 
-| # | Item | Owner | When |
+`.env` at repo root (`/Users/danime/Sites/rapidport.ro/app/.env`) must have (Dani set these):
+
+```
+NODE_ENV=development
+APP_URL=https://rapidport.ro
+DATABASE_URL=postgresql://rapidport:...@127.0.0.1:5432/rapidport?sslmode=disable
+
+ADMIN_EMAILS=daniel@digitap.eu            # SPEC Q#5 — real value in
+
+RESEND_API_KEY=re_...
+EMAIL_FROM=Rapidport <no-reply@rapidport.ro>
+
+GOOGLE_OAUTH_CLIENT_ID=...
+GOOGLE_OAUTH_CLIENT_SECRET=...
+GOOGLE_OAUTH_REDIRECT_URI=https://rapidport.ro/api/auth/google/callback
+```
+
+Not yet set (blocking future work):
+- Stripe keys (blocks `api-jobs-pay` + `api-webhooks-stripe`)
+- SmartBill key (**blocked on SPEC Q#1 + Q#3** — legal entity + invoice series name)
+- Anthropic key (needed once worker runs real jobs; not blocking UI work)
+- Sentry DSN (observability group)
+
+**Remember:** `env.ts` at `app/server/utils/env.ts` is the Zod validator — extend it when adding a new env var so boot fails loudly in prod if missing.
+
+---
+
+## Database
+
+Local Postgres via Postgres.app 16. Migrations 0000/0001/0002 applied.
+
+All 13 tables on main:
+- `jobs`, `mapping_cache`, `ai_usage` (Phase 1 baseline)
+- `users`, `sessions`, `magic_link_tokens` (auth-user)
+- `admin_sessions`, `admin_oauth_state`, `admin_audit_log` (auth-admin)
+- `payments`, `stripe_events` (payments)
+- `mapping_profiles` (user overrides)
+- `audit_log` (user-facing audit)
+- `rate_limits`, `metrics` (support)
+
+pg-boss will create its own `pgboss.*` schema on first worker connection. Schema owner is `rapidport` (`ALTER SCHEMA public OWNER TO rapidport`) — no CREATE EXTENSION needed.
+
+---
+
+## Open SPEC decisions (Dani-only)
+
+These block specific future tasks. Dani must answer before those tasks can start:
+
+- **Q#1: legal entity for invoices.** Gamerina SRL / Digitap / new SRL? Blocks `smartbill-client` + the "Emitent: ..." footer on `/account/invoices`.
+- **Q#3: SmartBill invoice series.** I used `RAPIDPORT-YYYY-NNNN` as placeholder in UI stubs. Blocks `smartbill-client`.
+- **Q#4: refund policy specifics.** Blocks `pages-legal/refund.vue` copy and `api-admin-jobs-actions` refund flow business rules.
+
+Q#5 (ADMIN_EMAILS allowlist): answered — Dani set it.
+
+---
+
+## Next wave — api-jobs
+
+**This is the critical path to the first customer.** Nothing the user flow needs (upload → pay → convert → download) works end-to-end because `api-jobs` hasn't shipped. The `/upload` Vue page exists but has no backend to POST to.
+
+### Tasks (8) — SPEC §2.2 routes, see `jobs/phase2-nuxt/JOB.md` §api-jobs
+
+| # | Task | Endpoint | Notes |
 |---|---|---|---|
-| 1 | SAGA Phase C live-import validation | Dani | Before first-customer pilot (requires SAGA C 3.0 install via UTM/CrossOver OR customer-pilot agreement) |
-| 2 | Mapping profile save/load (currently noop) | Phase 2 `pages-mapping` task | During Phase 2 |
-| 3 | Runtime end-to-end smoke on `samples/winmentor/donor-01` | Dani (operator) | Pre-production |
-| 4 | Runtime pg-boss publish→consume smoke | Dani (operator) | Pre-production |
-| 5 | `ReportInput` json/pdf shape unification | Phase 2 coordinator refactor | Opportunistic during Phase 2 |
-| 6 | Zip-bomb pytest runtime suite | Follow-up task before Phase 2 gate | Pre Phase 2 gate |
+| 1 | `api-jobs-create` | `POST /api/jobs` | Issues anonymous token, 10/hr rate limit per IP (already in rate-limit middleware). Uses `generateAnonymousToken()` + `setAnonymousTokenCookie()` from `utils/anonymous-token.ts`. |
+| 2 | `api-jobs-get` | `GET /api/jobs/[id]` | `assertJobAccess(id, event)` FIRST. Strip `anonymousAccessToken` from response before returning. |
+| 3 | `api-jobs-upload` | `PUT /api/jobs/[id]/upload` | Multipart, 500 MB cap (Caddy enforces), magic-byte check (.zip/.tar.gz/.7z/.tgz). 3/hr rate limit per IP (already in middleware). Store as `/data/jobs/{id}/upload/{uuid}.{ext}`. |
+| 4 | `api-jobs-discover` | `POST /api/jobs/[id]/discover` | Publishes pg-boss `discover` job. Need `app/server/utils/queue.ts` (pg-boss publisher — **not yet written**). |
+| 5 | `api-jobs-events-sse` | `GET /api/jobs/[id]/events` | SSE, 2s Postgres poll of `jobs.progress_stage` + `progress_pct`, heartbeat every 15s. |
+| 6 | `api-jobs-mapping` | `PATCH /api/jobs/[id]/mapping` | Zod-validated mapping updates written to `jobs.mapping_result` jsonb. |
+| 7 | `api-jobs-pay` | `POST /api/jobs/[id]/pay` | Creates Stripe PaymentIntent. **Depends on `stripe-client` util (api-webhooks group) — run that first or parallel.** |
+| 8 | `api-jobs-download-resync` | `GET /api/jobs/[id]/download` + `POST /api/jobs/[id]/resync` | Stream ZIP of output files, enforce `deltaSyncsUsed < deltaSyncsAllowed`. |
 
-**Important cross-phase dependency:** Phase 2's first task touching `app/server/types/queue.ts` must reverify parity with Phase 1's `ConvertPayload` / `DiscoverPayload` Pydantic models in `worker/src/migrator/consumer.py`. Keep the two shapes in sync by hand for now.
+### Missing util before tasks 4 + 7
 
----
+Two utils need to be written before their tasks:
+- **`app/server/utils/queue.ts`** — pg-boss publisher wrapper (`publishDiscover()`, `publishConvert()`). Reads `DATABASE_URL`, maintains a single pg-boss instance, graceful shutdown via Nitro hook. Small task — bundle it into `api-jobs-discover` or do first as prep.
+- **`app/server/utils/stripe.ts`** — `stripe-client` from api-webhooks group. Prep task, then `api-jobs-pay` + `api-webhooks-stripe` can run in parallel after.
 
-## File map — Phase 1 output on main
+### Suggested wave shape
 
-```
-worker/
-├── Dockerfile                          Python 3.12-slim, non-root UID 1000, unrar system dep
-├── .dockerignore
-├── .python-version                     3.12
-├── .gitignore
-├── README.md
-├── PG_BOSS_NOTES.md                    why we do direct asyncpg instead of a Python client
-├── pyproject.toml                      hatchling, ruff strict, mypy strict, pydantic.mypy plugin
-├── migrations/
-│   └── 001_worker_bootstrap.sql        jobs + mapping_cache + ai_usage (replaced by Drizzle in Phase 2)
-├── src/migrator/
-│   ├── __init__.py                     __version__ = "0.1.0" (sealed)
-│   ├── cli.py                          argparse convert + inspect subcommands
-│   ├── consumer.py                     pg-boss direct-asyncpg polling + SIGTERM + timeout
-│   ├── pipeline.py                     shared run_pipeline + build_* helpers
-│   ├── parsers/
-│   │   ├── paradox.py                  read_standard (pypxlib) + read_fallback (manual)
-│   │   ├── winmentor.py                encoding detection (CP852 dominant) + version detect
-│   │   └── registry.py                 TABLE_REGISTRY with 28 Phase 1 scope tables
-│   ├── canonical/
-│   │   ├── partner.py                  Partner + Address
-│   │   ├── article.py                  Article + VALID_VAT_RATES
-│   │   ├── journal.py                  JournalEntry + Invoice + Payment + InvoiceLine
-│   │   └── support.py                  Gestiune + CashRegister + BankAccount + ChartOfAccountsEntry + Currency + VatRate
-│   ├── mappers/
-│   │   ├── rule_based.py               80 deterministic rules across 11 WinMentor tables
-│   │   ├── cache.py                    mapping_cache asyncpg read-through + write-through
-│   │   ├── ai_assisted.py              claude-haiku-4-5 + tenacity retry + per-job cap
-│   │   └── usage.py                    ai_usage per-call + aggregate helpers
-│   ├── generators/
-│   │   ├── orchestrator.py             generate_saga_output dispatcher
-│   │   ├── saga_xml_terti_articole.py  UTF-8 XML for CLI_ / FUR_ / ART_
-│   │   ├── saga_xml_articole_contabile.py  analytical sub-accounts only
-│   │   ├── saga_xml_invoices.py        F_<cif>_<nr>_<date>.xml with routing
-│   │   └── saga_xml_payments.py        I_/P_<date>.xml batched by direction+date
-│   ├── reports/
-│   │   ├── conversion_report_json.py   report.json per SPEC §1.7 + migration-lock warning
-│   │   ├── conversion_report_pdf.py    report.pdf Romanian via DejaVu Sans
-│   │   └── fonts/
-│   │       ├── DejaVuSans.ttf          622 KB
-│   │       ├── DejaVuSans-Bold.ttf     573 KB
-│   │       └── LICENSE.txt             Bitstream Vera / DejaVu attribution
-│   └── utils/
-│       ├── archive.py                  zip bomb + path traversal defense
-│       ├── db.py                       asyncpg pool + migration runner
-│       └── logger.py                   structlog JSON + hash_email/redact_cif/redact_secret
-└── tests/__init__.py                   (empty placeholder — no tests shipped in Phase 1)
+- **Wave 4 prep (orchestrator, 1 commit):** `queue.ts` + `stripe.ts` + small type files in `app/server/types/queue.ts` (mirror Python Pydantic ConvertPayload/DiscoverPayload shapes from `worker/src/migrator/consumer.py` — **this is the Phase 1 cross-phase dependency** flagged in the Phase 1 GATE).
+- **Wave 4 workers (6 parallel):** api-jobs-create, api-jobs-get, api-jobs-upload, api-jobs-discover, api-jobs-events-sse, api-jobs-mapping. All file-disjoint, all consume utils already on main.
+- **Wave 4b (2 parallel after Wave 4):** api-jobs-pay, api-jobs-download-resync. Pay depends on stripe.ts; download depends on the file-store layout which is shaped by api-jobs-upload.
+- **Wave 4c:** api-webhooks-stripe handler (depends on stripe.ts + stripe_events schema).
 
-docker-compose.yml                      repo root, worker + postgres services
-```
+### Cross-phase sync check
+
+**IMPORTANT:** before shipping `api-jobs-discover`, verify `app/server/types/queue.ts` exactly matches `worker/src/migrator/consumer.py` Pydantic models `DiscoverPayload` and `ConvertPayload`. No drift is acceptable — runtime will silently drop jobs if payloads don't parse.
 
 ---
 
-## Phase 2 launch plan (for the new session)
+## Other remaining work after api-jobs
 
-When starting:
-
-1. **Read in this order:** `jobs/HANDOFF.md` (this file) → `jobs/INDEX.md` → `jobs/phase1-worker/GATE.md` (carry-forwards) → `jobs/phase2-nuxt/JOB.md` (full Phase 2 task list).
-2. **Reuse the wave model.** Map every Phase 2 group to its file footprint. Combine same-file tasks. Identify cross-group dependencies.
-3. **Bootstrap group is already done** (7/7 tasks — shadcn-setup + primitives merged in the pre-Phase-0 spike). Start from there.
-4. **First task that touches `app/server/types/queue.ts`** must reverify TS ↔ Python Pydantic payload parity with `worker/src/migrator/consumer.py` (ConvertPayload, DiscoverPayload). This is a Phase 2 cross-phase task — flag it explicitly in the task prompt.
-5. **`pages-mapping` task** inherits carry-forward #2 (mapping-profile save/load machinery). Scope it to include the save/load implementation + UI toggle for A1/A2/warehouse (per `docs/adr-001-code-mapping.md` "Phase 2 UI Impact").
-6. **Security-baseline group should run early** — CSRF middleware, session cookies, admin-audit middleware, input-validation conventions. These underpin every api-* and admin-* route.
-7. **Worker fundamental already on main** — no need to touch `worker/` again from Phase 2 unless adding tests (carry-forward #6).
-
-### Phase 2 groups in JOB.md (from memory — verify in JOB.md)
-- `bootstrap` ✅ done
-- `security-baseline` — CSRF, session cookies, middleware
-- `schema` — Drizzle migrations (supersedes Phase 1's `worker/migrations/001_*.sql`)
-- `auth-user` — magic-link login for accountants
-- `auth-admin` — Google OAuth for Dani
-- `api-upload`, `api-jobs`, `api-pay`, `api-webhooks` — Nitro routes
-- `pages-*` — Vue pages (landing, upload, job status, mapping review, result, account)
-- `admin-*` — admin dashboard
-- `stripe-webhook` — payment processing
-- `smartbill-*` — invoicing
-- `email-*` — Resend transactional
-- `gate` — Phase 2 gate review
-
-Phase 2 is bigger than Phase 1 in line count (Nuxt apps are wide) but has fewer cross-cutting shared files. Expect 3-5 parallel waves per group.
+- **api-webhooks-stripe** — Stripe webhook handler (constructEvent signature verify, 5-min replay window, `stripe_events` dedup, `payment_intent.succeeded` → mark PAID + publish convert + call SmartBill + email user, idempotent).
+- **smartbill-client + api-webhooks-smartbill** — blocked on SPEC Q#1 + Q#3.
+- **api-admin** — 8 admin endpoints; all guarded by admin-auth middleware that's already wired.
+- **pages-admin** — 8 admin pages; `/admin` + `/admin/login` are stubs that can be extended.
+- **pages-public remaining:** `/job/[id]/status` and `/job/[id]/result`. The pages-public tasks in JOB.md are partially out of date — many pages were built outside the job system. Verify what exists before spawning.
+- **gdpr-cleanup-cron** — only the pg-boss scheduled job remains (delete /data/jobs/{id}/ older than 30d, mark jobs EXPIRED, prune rate_limits, orphan sweep). DELETE /api/me and GET /api/me/export already shipped.
+- **email-guide** — Resend wrapper is done; still need 7 templates (`app/server/emails/*.vue`) and the SAGA import guide PDF.
+- **i18n** — Romanian + English locales.
+- **observability** — Sentry + metrics table writers.
+- **infra** — docker-compose, Caddyfile, Hetzner runbook.
+- **ci-tests** — GitHub Actions workflows.
+- **gate** — Phase 2 gate review task.
 
 ---
 
-## Things NOT to do (lessons from this session)
+## Product rules the next agent should not re-derive
 
-- **Don't spawn workers with `run_in_background: false`.** The `true` variant lets multiple waves run in parallel; `false` blocks orchestrator. Use background for anything beyond 2 min.
-- **Don't merge group → main before all tasks in the group are merged + squashed.** Stage discipline prevents half-done groups on main.
-- **Don't skip the file-footprint audit** before spawning a wave. "No two workers on the same file, ever" — Dani was right; the one time we got close to ignoring it, it was a collision trap.
-- **Don't let workers edit `__init__.py`.** Seal contract from Wave 1 scaffolding. Every parallel wave benefits.
-- **Don't fabricate gate verdicts.** The phase1-gate worker correctly refused when its worktree was stale — that's the right behavior. Orchestrator takes over for verification tasks when the harness is flaky.
+Things that are NOT in SPEC.md but matter:
+
+1. **No public mapping profiles for users.** `isPublic` + `adoptionCount` are admin-only. The user never sees a "make this public" toggle.
+2. **Mapping learning is invisible.** `mapping_cache` absorbs high-confidence AI mappings from every migration automatically; the user doesn't opt into sharing — nothing of theirs is shared. Only the field→field mapping is cached, never company data.
+3. **VAT is 21%** on user-facing pages.
+4. **All confirmation UIs use `<LayoutConfirmDialog>`** — not ad-hoc Dialog instances. Variants: `default`, `destructive`. Props: `title`, `description`, `confirmLabel`, `cancelLabel`, `loading`, `v-model:open`.
+5. **PIN auth, not magic-link.** `/login` is two-step, emails contain a 6-digit code.
+6. **`/account` is a real dashboard** (migrations + invoices + stats), not a profile list.
+7. **Admin login always stays at `/admin/login`** (nested under admin section). User login is flat at `/login`.
 
 ---
 
 ## Contact / escalation
 
-- **Orchestrator mode mismatches** (worker thinks it's on a different branch, or can't find expected files) → harness bug #1 above; check `git worktree list` + the worker's actual branch via `git branch --show-current`.
-- **Merge conflicts** during squash-merge → stop, rebase the task branch on the latest group, re-run tests, retry. Never force-push.
-- **Post-hook failures** (`task-complete-gate.sh`) → orchestrator should stay on main. Hook fires on Stop events; returning to main before turn ends avoids it.
+- SPEC.md is the product truth. When the code contradicts SPEC, check `docs/LOG.md` for the decision that changed it; if nothing there, ask Dani before acting.
+- Merge conflicts during squash: don't force-resolve. Rebase task branch on the latest group branch, re-test, retry.
+- Hook failures: fix the root cause, don't `--no-verify`.
+- Post-hook `task-complete-gate.sh` fires on Stop events if orchestrator is on a task branch without a DONE report. **Always return to `main` before ending a turn.**
 
-Good luck in the clean session. Phase 2 is mostly wiring — Phase 1's foundation makes it a lot less scary than it looks in JOB.md.
+Good luck. api-jobs is the big one.
