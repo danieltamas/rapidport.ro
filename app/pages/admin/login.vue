@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// Admin login — opens Google OAuth in a popup, polls /api/auth/admin-session
-// for the cookie to land, then navigates to /admin. We deliberately DO NOT
-// use postMessage/window.opener — nuxt-security's COOP severs the opener
-// reference when the popup visits accounts.google.com, which makes any
-// postMessage-based handshake silently drop.
+// Admin login — opens Google OAuth in a popup, listens for a BroadcastChannel
+// signal from /oauth/close (the popup's final stop) + polls
+// /api/auth/admin-session as a fallback. We deliberately do NOT use
+// postMessage/window.opener — nuxt-security's COOP severs the opener the
+// moment the popup visits accounts.google.com. BroadcastChannel is
+// same-origin IPC and bypasses that entirely.
 import { Button } from '~/components/ui/button'
 import { LogIn, Loader2 } from 'lucide-vue-next'
 
@@ -33,16 +34,23 @@ const signingIn = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let closeWatcher: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
+let channel: BroadcastChannel | null = null
+let authed = false
 
 function cleanup() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
   if (closeWatcher) { clearInterval(closeWatcher); closeWatcher = null }
   if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null }
+  if (channel) { try { channel.close() } catch { /* noop */ } channel = null }
 }
 
 async function checkSession(): Promise<boolean> {
   try {
-    const res = await $fetch<{ authed: boolean; email?: string }>('/api/auth/admin-session')
+    // cache:'no-store' so the browser never serves a stale {authed:false}
+    // snapshot between popup ticks.
+    const res = await $fetch<{ authed: boolean; email?: string }>('/api/auth/admin-session', {
+      cache: 'no-store',
+    })
     return res.authed === true
   } catch {
     return false
@@ -54,6 +62,7 @@ async function signIn() {
   signingIn.value = true
   errorCode.value = null
   cleanup()
+  authed = false
 
   const w = 500
   const h = 620
@@ -73,8 +82,6 @@ async function signIn() {
   }
   const popup: Window = popupRef
 
-  let authed = false
-
   async function finishSuccess() {
     if (authed) return
     authed = true
@@ -83,36 +90,60 @@ async function signIn() {
     await navigateTo('/admin')
   }
 
-  // Poll session every 750ms. Cookie lands when callback.get.ts runs successfully.
+  function finishError(code: string) {
+    if (authed) return
+    cleanup()
+    try { popup.close() } catch { /* already closed */ }
+    errorCode.value = code
+    signingIn.value = false
+  }
+
+  // Primary signal: BroadcastChannel from /oauth/close. Fires as soon as the
+  // popup's final page mounts (before window.close()). Same-origin IPC — not
+  // affected by COOP, not affected by CSP.
+  try {
+    channel = new BroadcastChannel('rapidport-admin-oauth')
+    channel.onmessage = async (ev) => {
+      const data = ev.data as { source?: string; status?: 'ok' | 'error'; code?: string | null } | null
+      if (!data || data.source !== 'rapidport-admin-oauth') return
+      if (data.status === 'ok') {
+        // Session cookie is already committed; navigate.
+        await finishSuccess()
+      } else {
+        finishError(data.code ?? 'unknown')
+      }
+    }
+  } catch {
+    // Browser without BroadcastChannel — the poll + close-watcher below
+    // still recovers on success.
+  }
+
+  // Fallback: session polling (every 500ms). Recovers in any BroadcastChannel
+  // edge case (old browser, 3rd-party cookie blocker nuking the channel, etc.).
   pollTimer = setInterval(async () => {
     if (await checkSession()) await finishSuccess()
-  }, 750)
+  }, 500)
 
-  // Watch for user closing the popup manually. Short delay after a close to
-  // give the final poll tick one more chance (the callback sets the cookie
-  // just before redirecting to /oauth/close which then window.close()s).
-  closeWatcher = setInterval(() => {
-    if (!popup.closed) return
-    // Popup is gone — one final session check to catch races.
-    setTimeout(async () => {
-      if (authed) return
+  // Popup-close watcher: if the popup is gone AND we haven't flipped authed,
+  // do a few retry session checks (grace period for cookie/poll race) before
+  // declaring popup_closed.
+  closeWatcher = setInterval(async () => {
+    if (!popup.closed || authed) return
+    // Stop watching so we don't re-enter.
+    if (closeWatcher) { clearInterval(closeWatcher); closeWatcher = null }
+    for (let attempt = 0; attempt < 5 && !authed; attempt++) {
       if (await checkSession()) {
         await finishSuccess()
         return
       }
-      cleanup()
-      if (!errorCode.value) errorCode.value = 'popup_closed'
-      signingIn.value = false
-    }, 300)
-  }, 500)
+      await new Promise((r) => setTimeout(r, 400))
+    }
+    if (!authed) finishError('popup_closed')
+  }, 400)
 
   // Hard timeout — 3 minutes — so we don't poll forever if the user walks away.
   timeoutTimer = setTimeout(async () => {
-    if (authed) return
-    cleanup()
-    try { popup.close() } catch { /* noop */ }
-    if (!errorCode.value) errorCode.value = 'popup_timeout'
-    signingIn.value = false
+    if (!authed) finishError('popup_timeout')
   }, 3 * 60 * 1000)
 }
 

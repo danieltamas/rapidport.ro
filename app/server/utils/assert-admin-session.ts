@@ -1,6 +1,14 @@
 // Strict admin session assertion — CODING.md §13.7 reference implementation.
-// Enforces: cookie present, row found, not revoked, not expired, IP unchanged,
-// email still in ADMIN_EMAILS allowlist. Any failure throws 401/403 — never returns null.
+// Enforces: cookie present, row found, not revoked, not expired, IP unchanged
+// (in production only), email still in ADMIN_EMAILS allowlist. Any failure
+// throws 401/403 — never returns null.
+//
+// IP binding is SKIPPED in NODE_ENV=development. Local dev often involves
+// networking paths where the "client IP" varies between requests (docker
+// bridges, cloudflared tunnels, VPN bounce, browser prefetch from a different
+// interface). Enforcing IP match there revokes the session mid-session and
+// kicks the admin back to /admin/login every few refreshes. In production
+// (behind Caddy + stable origin) the check is on.
 import { Buffer } from 'node:buffer';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { H3Event } from 'h3';
@@ -33,11 +41,13 @@ export async function assertAdminSession(event: H3Event): Promise<AdminSession> 
     throw createError({ statusCode: 401 });
   }
 
-  // 3. IP binding — any change revokes + 401.
-  const currentIpHash = sha256Hex(getRequestIP(event, { xForwardedFor: true }) ?? '');
-  if (!constantTimeEqualHex(session.ipHash, currentIpHash)) {
-    await revokeAdminSession(session.sessionId, event);
-    throw createError({ statusCode: 401, statusMessage: 'Session invalidated — IP changed.' });
+  // 3. IP binding — any change revokes + 401. Skipped in dev (see file header).
+  if (env.NODE_ENV === 'production') {
+    const currentIpHash = sha256Hex(getRequestIP(event, { xForwardedFor: true }) ?? '');
+    if (!constantTimeEqualHex(session.ipHash, currentIpHash)) {
+      await revokeAdminSession(session.sessionId, event);
+      throw createError({ statusCode: 401, statusMessage: 'Session invalidated — IP changed.' });
+    }
   }
 
   // 4. Allowlist re-check — ADMIN_EMAILS is already normalized lowercase in env.ts.
