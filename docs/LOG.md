@@ -8,6 +8,27 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `pages-admin` — 8 admin dashboard pages + shell layout
+
+**Merge:** `06c4077` (group `job/phase2-nuxt/pages-admin` → main, --no-ff).
+
+Shell + overview landed single-agent (`43da111`). Rest shipped via 5 parallel workers — **all 5 hit the harness Bash-denied flake**, but all 5 used the mandatory-salvage clause in the prompt and wrote canonical files via Write. Orchestrator committed each as a separate commit on the group branch.
+
+**New files:**
+- `app/layouts/admin.vue` — dark-mode shell; collapsible 240/64px sidebar w/ lucide icons; topbar with route breadcrumb + persistent ADMIN red banner; sign-out wired via `/api/admin/logout`.
+- `app/pages/admin/index.vue` — 7-card overview bound to `/api/admin/stats` (total jobs, revenue 30d RON, paid/succeeded/failed 30d, AI cost 30d USD, users).
+- `app/pages/admin/jobs/{index,[id]}.vue` — list (Zod filters + pagination + URL sync) + detail (metadata + Actions card with 6 dialogs: refund / extend-syncs / resend-download / force-state / re-run / delete; payments + audit tables).
+- `app/pages/admin/payments/index.vue` — list with status/q/refunded filters; job link to detail; SmartBill invoice link if present.
+- `app/pages/admin/users/{index,[id]}.vue` — list w/ state filter (active|blocked|deleted) + detail w/ 4 action dialogs (grant/block/unblock/delete; delete requires typing DELETE); stats strip + recent jobs.
+- `app/pages/admin/ai/index.vue` — 30-day trend strip + CSS bar chart (no chart lib) + top unmapped fields (muted empty-state note) + low-confidence mappings (color-coded: <0.5 destructive, <0.7 warning).
+- `app/pages/admin/profiles/index.vue` — list with visibility filter + promote/hide dialogs.
+- `app/pages/admin/audit/index.vue` — paginated admin_audit_log read with 6-field filter bar (incl. datetime-local); expand-row for JSON details; target-type-aware deep links to /admin/jobs or /admin/users.
+- `app/pages/admin/sessions/index.vue` — list active admin sessions; revoke button disabled on current (server also enforces); CURRENT badge; ConfirmDialog.
+
+**All pages:** `definePageMeta({ layout: 'admin' })`, English-only, dark-by-default, shadcn primitives only, SSR-fetch via `useAsyncData` + `useRequestHeaders(['cookie'])` cookie-forward, `x-csrf-token` from the `rp_csrf` cookie on mutations, no fabricated data, no new deps.
+
+**Process note:** salvage-clause language with "MANDATORY, not optional" + "Do NOT bail" worked — 5/5 workers produced deliverables despite Bash-denied. Keep this wording pattern for future waves.
+
 ### `api-admin` Wave B — 19 admin endpoints (jobs-actions + users + ai + misc) + prep
 
 **Merge:** group `job/phase2-nuxt/api-admin-wave-b` → main, --no-ff. Plan committed `deef060`; Dani approved 8 design decisions inline.

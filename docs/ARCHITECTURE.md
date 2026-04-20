@@ -48,9 +48,16 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── invoices.vue           # SmartBill invoices table, PDF download (stub until smartbill-client)
 │   │   │   ├── profiles.vue           # mapping overrides — framed as advanced, empty-state default
 │   │   │   └── security.vue           # Cont panel + sessions list + data export + danger-zone delete (all wired)
-│   │   ├── admin/
+│   │   ├── admin/                     # uses layouts/admin.vue (dark, sidebar, ADMIN banner)
 │   │   │   ├── login.vue              # 'Sign in with Google' button → /api/auth/google/start
-│   │   │   └── index.vue              # placeholder dashboard stub (logout button wired) — pages-admin owns the real one
+│   │   │   ├── index.vue              # overview — 7 stat cards from /api/admin/stats
+│   │   │   ├── jobs/{index,[id]}.vue  # list + detail w/ 6 action dialogs (refund/extend/resend/force-state/re-run/delete)
+│   │   │   ├── payments/index.vue     # list w/ status+q+refunded filters; SmartBill deep-links
+│   │   │   ├── users/{index,[id]}.vue # list + detail w/ grant-syncs/block/unblock/delete dialogs
+│   │   │   ├── ai/index.vue           # 30d trend + top-unmapped + low-confidence mappings
+│   │   │   ├── profiles/index.vue     # list + promote/hide dialogs
+│   │   │   ├── audit/index.vue        # paginated admin_audit_log read + expandable details
+│   │   │   └── sessions/index.vue     # list active admin sessions + revoke (self-lockout guard)
 │   │   ├── job/[id]/
 │   │   │   ├── discovery.vue          # (pre-existing)
 │   │   │   ├── mapping.vue            # (pre-existing)
@@ -59,6 +66,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   ├── assets/css/
 │   │   └── tailwind.css               # @import "tailwindcss"; :root Rapidport tokens + shadcn alias vars + @theme inline + .light overrides + html/body dark baseline
 │   ├── components.json                # shadcn-vue config (Rapidport-flat aliases; 'framework' key dropped — new shadcn-vue CLI rejects it)
+│   ├── layouts/
+│   │   └── admin.vue                  # admin shell — dark, collapsible sidebar + topbar + ADMIN red banner
 │   ├── components/layout/             # Rapidport-specific layout components (auto-imported as Layout*)
 │   │   ├── SiteHeader.vue             # auth-aware nav: logged-in email dropdown (Contul meu / Securitate / Ieșire) or Autentificare link
 │   │   ├── SiteFooter.vue             # global footer
