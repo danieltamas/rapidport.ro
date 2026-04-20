@@ -141,9 +141,36 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── stats.get.ts             # GET /api/admin/stats — 7 dashboard numbers (jobs counts, revenue, AI cost, users) over 30d window
 │   │   │   │   ├── jobs/
 │   │   │   │   │   ├── index.get.ts         # GET /api/admin/jobs — paginated list, Zod filters, whitelisted sort
-│   │   │   │   │   └── [id].get.ts          # GET /api/admin/jobs/[id] — full join (job + payments + audit), audit row written first
-│   │   │   │   └── payments/
-│   │   │   │       └── index.get.ts         # GET /api/admin/payments — paginated list w/ jobs leftJoin (billingEmail), refund filter
+│   │   │   │   │   ├── [id].get.ts          # GET /api/admin/jobs/[id] — full join (job + payments + audit), audit row written first
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       ├── refund.post.ts          # Stripe refund w/ idempotency key; payments tx + audit
+│   │   │   │   │       ├── extend-syncs.post.ts    # atomic deltaSyncsAllowed += N; audit
+│   │   │   │   │       ├── resend-download.post.ts # re-fires conversion-ready RO email
+│   │   │   │   │       ├── force-state.post.ts     # whitelisted from→to transitions; optimistic lock
+│   │   │   │   │       ├── re-run.post.ts          # re-publishConvert; doesn't bump deltaSyncsUsed
+│   │   │   │   │       └── index.delete.ts         # paid-job guard; rm -rf upload dir; null PII; audit
+│   │   │   │   ├── users/
+│   │   │   │   │   ├── index.get.ts         # paginated list, state filter (active|blocked|deleted)
+│   │   │   │   │   ├── [id].get.ts          # detail + jobs/payments stats + last 10 jobs
+│   │   │   │   │   ├── [id].delete.ts       # admin-initiated GDPR purge — calls purgeUserData()
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       ├── grant-syncs.post.ts     # bump deltaSyncsAllowed for all of user's jobs
+│   │   │   │   │       ├── block.post.ts           # set blocked_at + reason; 409 already_blocked
+│   │   │   │   │       └── unblock.post.ts         # clear blocked_at + reason; 409 not_blocked
+│   │   │   │   ├── ai/
+│   │   │   │   │   └── index.get.ts         # trend30d (daily ai_usage groupby) + lowConfidenceMappings (cache < 0.7) + topUnmappedFields=[] (TODO worker)
+│   │   │   │   ├── payments/
+│   │   │   │   │   └── index.get.ts         # GET /api/admin/payments — paginated list w/ jobs leftJoin (billingEmail), refund filter
+│   │   │   │   ├── profiles/
+│   │   │   │   │   ├── index.get.ts         # list mapping_profiles (no `mappings` jsonb in response)
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       ├── promote.post.ts         # isPublic=true; 409 already_public
+│   │   │   │   │       └── hide.post.ts            # isPublic=false; 409 already_hidden
+│   │   │   │   ├── audit/
+│   │   │   │   │   └── index.get.ts         # paginated admin_audit_log with filters; self-audited
+│   │   │   │   └── sessions/
+│   │   │   │       ├── index.get.ts         # list active admin sessions, marks current
+│   │   │   │       └── [id].delete.ts       # revoke admin session; rejects current (self-lockout guard)
 │   │   │   └── jobs/
 │   │   │       ├── index.post.ts            # POST /api/jobs — Zod {source,target,billingEmail?}; mints anon token; sets cookie; 10/hr/IP rate limit
 │   │   │       ├── [id].get.ts              # GET  /api/jobs/[id] — assertJobAccess first; strips anonymousAccessToken from response

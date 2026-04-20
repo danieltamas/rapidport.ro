@@ -4,7 +4,7 @@
 
 The full critical-path code is now on main. To actually ship a paid migration end-to-end, you need:
 1. **Live Stripe smoke** — see live-keys note below.
-5. **api-admin Wave A DONE**: 4 read-only admin endpoints (stats, jobs-list, jobs-detail, payments) on main. **Wave B (jobs-actions / users / ai / misc) NOT dispatched** — these include refund / force-state / delete mutations; warrant a written plan + Dani approval before spawning workers.
+5. **api-admin Waves A + B DONE**: 23 admin endpoints + migration 0004 (`users.blocked_at`/`blocked_reason`) + `purgeUserData` helper. Settings + errors stubs deferred (no env mutability surface today; no Sentry yet).
 
 2. ~~Worker output bundling~~ **DONE** (`95ea945`): `worker/src/migrator/utils/archive.py:bundle_output()` zips `output/` → `output.zip` atomically inside `consumer.run_convert`, before `_mark_rp_succeeded`. Download handler no longer 501s on the happy path.
 3. ~~Email templates~~ partial (`cd00697`): payment-confirmed wired into webhook; copy for all 5 approved templates locked in `docs/emails-copy.md`. Three deferred templates (mapping-ready, conversion-ready, sync-complete) need worker→Nuxt notification glue — see "Deferred wiring" in the copy doc.

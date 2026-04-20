@@ -8,6 +8,55 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-admin` Wave B — 19 admin endpoints (jobs-actions + users + ai + misc) + prep
+
+**Merge:** group `job/phase2-nuxt/api-admin-wave-b` → main, --no-ff. Plan committed `deef060`; Dani approved 8 design decisions inline.
+
+**Prep commit (orchestrator-direct on main):**
+- Migration `0004_tricky_madelyne_pryor.sql`: `users.blocked_at timestamptz` + `users.blocked_reason text` (both nullable). Applied locally.
+- `auth-user.getUserSession` now also filters on `isNull(users.blockedAt)` AND `isNull(users.deletedAt)` — both blocked + GDPR-deleted users are treated as logged-out without revoking sessions; unblock re-auths cleanly.
+- Extracted GDPR purge to `utils/purge-user.ts:purgeUserData(input)`. Refactored `me/index.delete.ts` to call it. Wave B's `DELETE /api/admin/users/[id]` calls the same helper — no drift.
+
+**Task commits (4 parallel workers; 1 fully orchestrator-direct salvage when worker bailed on Bash-denied without using salvage clause):**
+- `feat(admin): jobs actions — refund + extend-syncs + resend-download + force-state + re-run + delete` (worker, `de33da8`)
+- `feat(admin): users — list + detail + grant-syncs + block + unblock + delete` (worker, `e4cc682`)
+- `feat(admin): GET /api/admin/ai — usage trend + low-confidence mappings + audit` (worker, `41b2167`)
+- `feat(admin): profiles + audit + sessions endpoints` (orchestrator salvage)
+
+**New endpoints (all under `/api/admin/*`, every mutation writes a transactional `admin_audit_log` row — Wave B is stricter than Wave A; reads stay best-effort):**
+
+*Jobs actions (6):*
+- `POST /api/admin/jobs/[id]/refund` — Stripe refund with idempotency key `refund_{paymentId}_{amount}`. Stripe call OUTSIDE the DB tx; payments UPDATE + audit transactional. 409 if no succeeded payment or already fully refunded.
+- `POST /api/admin/jobs/[id]/extend-syncs` — `{additional, reason}` → atomic `${jobs.deltaSyncsAllowed} + ${additional}` increment, transactional audit.
+- `POST /api/admin/jobs/[id]/resend-download` — re-uses conversion-ready RO copy (per `docs/emails-copy.md` §3); recipient = billingEmail ?? user email; 409 `no_recipient` if neither.
+- `POST /api/admin/jobs/[id]/force-state` — Dani-approved transition allowlist: `succeeded↔failed`, `failed→created`, `created→expired`, `paid→expired` (warns "consider running refund first"). Optimistic lock on `WHERE id=$1 AND status=$from` → 409 `stale_state` if 0 rows.
+- `POST /api/admin/jobs/[id]/re-run` — re-publishConvert; does NOT increment `deltaSyncsUsed` (admin override, not user quota).
+- `DELETE /api/admin/jobs/[id]` — paid-job guard rejects if any `payments.status='succeeded'` exists for the job (409 `paid_job_must_refund_first`); otherwise `fs.rm /data/jobs/{id}/` (non-fatal) + null PII columns + `anonymousAccessToken='[deleted]'` + status='expired' + audit transactional.
+
+*Users (6):*
+- `GET /api/admin/users` — paginated list, `state` filter (`active|blocked|deleted`), Zod sort whitelist.
+- `GET /api/admin/users/[id]` — detail + `Promise.all` over jobs/payments stats + last 10 jobs (no `anonymousAccessToken`).
+- `POST /api/admin/users/[id]/grant-syncs` — bumps `delta_syncs_allowed` for ALL the user's jobs; audit captures `jobsAffected`.
+- `POST /api/admin/users/[id]/block` — `{reason}` → `blocked_at=now(), blocked_reason=...`; 409 `already_blocked`.
+- `POST /api/admin/users/[id]/unblock` — symmetric; `{reason}` captured for audit symmetry; 409 `not_blocked`.
+- `DELETE /api/admin/users/[id]` — calls `purgeUserData()` helper (shared with `DELETE /api/me`); audit captures `originalEmailHashPrefix` (sha256 first 8 chars) so the row isn't fully un-traceable but PII is gone.
+
+*AI (1):*
+- `GET /api/admin/ai` — `trend30d` (daily groupby on `ai_usage`), `lowConfidenceMappings` (mapping_cache where `confidence < 0.7`, ORDER BY `hitCount DESC` LIMIT 50), `topUnmappedFields: []` with TODO marker (worker doesn't log mapping misses yet — flagged for future observability task).
+
+*Misc (6):*
+- `GET /api/admin/profiles` — list (no `mappings` jsonb in response — too large), filters + whitelisted sort.
+- `POST /api/admin/profiles/[id]/promote` — `isPublic=true`; 409 `already_public`.
+- `POST /api/admin/profiles/[id]/hide` — `isPublic=false`; 409 `already_hidden`.
+- `GET /api/admin/audit` — paginated `admin_audit_log` read with filters; self-audited (`audit_log_viewed`).
+- `GET /api/admin/sessions` — list active admin sessions, marks current via `getAdminSession.sessionId`.
+- `DELETE /api/admin/sessions/[id]` — self-lockout guard rejects current session (409 `cannot_revoke_current_session`).
+
+**Settings + errors endpoints intentionally deferred** (plan D1) — settings has nothing to display today (env is boot-validated and immutable); errors needs `observability-sentry` first.
+
+**Process notes for next agent:**
+- Worker harness Bash-denied flake hit ~1 of 4 again. The api-admin-misc worker bailed without using its salvage authorization — orchestrator had to write 6 files + DONE + commit. Future worker prompts could be more forceful: "If Bash is denied, use Write tool to write all required files; do NOT stop early" rather than the current softer "salvage authorization" framing.
+
 ### `api-admin` Wave A — 4 read-only admin endpoints
 
 **Merge:** group `job/phase2-nuxt/api-admin` → main, --no-ff.
