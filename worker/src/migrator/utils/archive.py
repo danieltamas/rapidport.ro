@@ -26,7 +26,7 @@ try:
 except ImportError:
     _HAS_LOGGER = False
 
-__all__ = ["ArchiveError", "extract_archive"]
+__all__ = ["ArchiveError", "extract_archive", "bundle_output"]
 
 # --- magic bytes ---
 _ZIP_MAGIC = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
@@ -424,3 +424,55 @@ def extract_archive(
         )
 
     return root
+
+
+# ---------------------------------------------------------------------------
+# Output bundling — zip the converted output dir for download.
+# ---------------------------------------------------------------------------
+def bundle_output(output_dir: Path) -> Path:
+    """Zip every file under ``output_dir`` (recursive) into a sibling
+    ``output.zip``. Returns the zip path.
+
+    Atomic-write: the archive is written to ``output.zip.tmp`` and then
+    ``os.replace``-d into place so a concurrent reader (the Nuxt download
+    handler) never observes a half-written file.
+
+    Stdlib ``zipfile`` only — no new deps. ``ZIP_DEFLATED`` for reasonable
+    compression on text-heavy SAGA outputs (XML/DBF + report.json/pdf).
+
+    Raises ``ArchiveError`` if ``output_dir`` is missing, not a directory, or
+    contains zero files.
+    """
+    if not output_dir.is_dir():
+        raise ArchiveError(f"bundle_output: not a directory: {output_dir}")
+
+    files = sorted(p for p in output_dir.rglob("*") if p.is_file())
+    if not files:
+        raise ArchiveError("bundle_output: output_dir is empty")
+
+    zip_path = output_dir.parent / "output.zip"
+    tmp_path = output_dir.parent / "output.zip.tmp"
+
+    try:
+        with zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for f in files:
+                # arcname is path relative to output_dir so the zip unpacks
+                # cleanly without leaking the absolute server path.
+                zf.write(f, arcname=f.relative_to(output_dir).as_posix())
+        os.replace(tmp_path, zip_path)
+    except Exception as exc:
+        # Best-effort cleanup of the partial tmp file.
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise ArchiveError(f"bundle_output: write failed: {type(exc).__name__}") from exc
+
+    if _HAS_LOGGER:
+        _log.info(  # type: ignore[union-attr]
+            "output_bundled",
+            zip_bytes=zip_path.stat().st_size,
+            file_count=len(files),
+        )
+
+    return zip_path

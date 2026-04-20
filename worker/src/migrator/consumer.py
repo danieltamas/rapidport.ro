@@ -254,7 +254,7 @@ async def run_convert(
     from migrator.reports.conversion_report_pdf import ReportInput as PdfRI
     from migrator.reports.conversion_report_pdf import ReportIssue as PdfIssue
     from migrator.reports.conversion_report_pdf import write_report_pdf
-    from migrator.utils.archive import ArchiveError, extract_archive
+    from migrator.utils.archive import ArchiveError, bundle_output, extract_archive
 
     job_id = payload.job_id
     input_path = Path(payload.input_path).resolve()
@@ -371,6 +371,19 @@ async def run_convert(
             },
             issues=pdf_issues,
         ))
+
+        # Bundle the output directory into a sibling output.zip so the Nuxt
+        # download handler (api/jobs/[id]/download) can stream a single file.
+        # Atomic rename inside bundle_output guarantees no half-written file is
+        # observed. Bundle BEFORE marking succeeded so the SSE 'done' event
+        # implies the zip is ready to download.
+        try:
+            bundle_output(output_dir)
+        except ArchiveError as exc:
+            # Bundling failure is fatal: the user paid for a downloadable bundle.
+            # Mark failed so the customer is notified rather than landing on a
+            # 'succeeded' job that returns 501 on download.
+            raise RuntimeError(f"bundle_failed: {exc}") from exc
 
         await _mark_rp_succeeded(pool, job_id)
         await _progress(pool, job_id, "done", 100)
