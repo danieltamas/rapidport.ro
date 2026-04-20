@@ -47,7 +47,7 @@ function renderEmail(code: string): { html: string; text: string } {
       <p style="font-size: 14px; line-height: 1.5; color: #666;">Codul este valabil 15 minute și poate fi folosit o singură dată.</p>
       <p style="font-size: 14px; line-height: 1.5; color: #666;">Dacă nu ați cerut acest cod, ignorați acest email.</p>
       <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 32px 0;">
-      <p style="font-size: 12px; color: #999;">Rapidport — migrare WinMentor → SAGA</p>
+      <p style="font-size: 12px; color: #999;">Rapidport — portare WinMentor ⇄ SAGA, în ambele direcții</p>
     </div>
   `;
   const text = `Codul de autentificare Rapidport: ${code}\n\nValabil 15 minute, o singură folosință.\n\nDacă nu ați cerut acest cod, ignorați acest email.`;

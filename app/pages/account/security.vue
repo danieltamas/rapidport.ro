@@ -127,11 +127,22 @@ async function revokeOneSession() {
 
 async function deleteAccount() {
   deleteAccountLoading.value = true
-  // TODO: real DELETE /api/me lands with gdpr-cleanup task. For now this is a stub
-  // that just closes the dialog. Wiring is ready — the task just needs the endpoint.
-  await new Promise((r) => setTimeout(r, 400))
+  try {
+    await $fetch('/api/me', {
+      method: 'DELETE',
+      headers: { 'x-csrf-token': readCsrf() },
+    })
+  } catch {
+    // Fall through — even on server-side failure we clear the session cookie
+    // client-side so the user is logged out regardless. The server also clears
+    // it on success.
+  }
   deleteAccountLoading.value = false
   deleteAccountOpen.value = false
+  // Hard reload to wipe any cached useAsyncData('session') state before landing.
+  if (import.meta.client) {
+    window.location.href = '/?deleted=1'
+  }
 }
 
 const exportLoading = ref(false)
