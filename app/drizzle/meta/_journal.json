@@ -29,6 +29,13 @@
       "when": 1776673439202,
       "tag": "0003_slow_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776680001968,
+      "tag": "0004_tricky_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }
