@@ -2,6 +2,8 @@ import { pgTable, uuid, text, integer, bigint, jsonb, timestamp, index, type Any
 import { users } from './users';
 import { mappingProfiles } from './mapping_profiles';
 
+// upload_disk_filename added in migration 0003 (Wave 4 → 4b prep) — separates the
+// server-controlled on-disk name (UUID-based) from the user's display filename.
 // Phase 1 columns (id, status, progress*, *Version, deltaSync*, createdAt, updatedAt)
 // are preserved byte-for-byte. Phase 2 adds user linkage, anonymous access token,
 // source/target software, upload metadata, discovery + mapping result blobs, mapping

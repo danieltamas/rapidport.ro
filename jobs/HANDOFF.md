@@ -1,6 +1,6 @@
-# Handoff — api-jobs Wave 4 shipped, Wave 4b (pay + download/resync) is next
+# Handoff — api-jobs Wave 4 + 4b shipped, Wave 4c (Stripe webhook) is next
 
-**Date:** 2026-04-20 (late) | **Last orchestrator session:** Wave 4 prep + 6 user-facing job handlers | **Next:** api-jobs Wave 4b (pay, download/resync) → Wave 4c (Stripe webhook)
+**Date:** 2026-04-20 (later) | **Last orchestrator session:** Wave 4 prep + 6 handlers + schema fix 0003 + Wave 4b (pay + download/resync) | **Next:** Wave 4c — `api-webhooks-stripe`. Plan written; awaiting approval.
 
 ---
 

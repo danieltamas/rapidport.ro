@@ -83,7 +83,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   ├── db/
 │   │   │   ├── schema.ts              # re-exports all sibling schema files
 │   │   │   ├── schema/
-│   │   │   │   ├── jobs.ts            # minimal jobs table — Phase 1 worker uses progress_* cols
+│   │   │   │   ├── jobs.ts            # jobs — Phase 1 progress_* + Phase 2 user/anon/upload/discovery/mapping/billing; uploadDiskFilename added by 0003
 │   │   │   │   ├── mapping_cache.ts   # cached Haiku field mappings, unique (source, table, field)
 │   │   │   │   ├── ai_usage.ts        # per-call Anthropic token + cost tracking
 │   │   │   │   ├── users.ts           # users — email (unique) + email_hash (indexed) + deleted_at soft-delete
@@ -140,10 +140,13 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │       ├── index.post.ts            # POST /api/jobs — Zod {source,target,billingEmail?}; mints anon token; sets cookie; 10/hr/IP rate limit
 │   │   │       ├── [id].get.ts              # GET  /api/jobs/[id] — assertJobAccess first; strips anonymousAccessToken from response
 │   │   │       └── [id]/
-│   │   │           ├── upload.put.ts        # PUT  /api/jobs/[id]/upload — multipart, magic-byte sniff (zip|tgz|7z), 500MB cap, 3/hr/IP
-│   │   │           ├── discover.post.ts     # POST /api/jobs/[id]/discover — readdir on-disk path; publishDiscover(); progress=queued
+│   │   │           ├── upload.put.ts        # PUT  /api/jobs/[id]/upload — multipart, magic-byte sniff (zip|tgz|7z), 500MB cap, 3/hr/IP; persists uploadDiskFilename
+│   │   │           ├── discover.post.ts     # POST /api/jobs/[id]/discover — uses jobs.uploadDiskFilename; publishDiscover(); progress=queued
 │   │   │           ├── events.get.ts        # GET  /api/jobs/[id]/events — SSE (2s poll, 15s heartbeat, terminal-state close, 10min cap)
-│   │   │           └── mapping.patch.ts     # PATCH /api/jobs/[id]/mapping — Zod-validated mapping update; state guard mapped→reviewing
+│   │   │           ├── mapping.patch.ts     # PATCH /api/jobs/[id]/mapping — Zod-validated mapping update; state guard mapped→reviewing
+│   │   │           ├── pay.post.ts          # POST /api/jobs/[id]/pay — Stripe PaymentIntent (60_400 bani RON); idempotent re-click; returns clientSecret only
+│   │   │           ├── download.get.ts      # GET  /api/jobs/[id]/download — streams /data/jobs/{id}/output.zip; 501 if no zip bundler wired
+│   │   │           └── resync.post.ts       # POST /api/jobs/[id]/resync — quota-gated (deltaSyncsUsed/Allowed); publishConvert() with mapping_profile=null; atomic ++
 │   │   └── plugins/
 │   │       ├── env-check.ts           # side-effect import of env — validation fires at Nitro boot
 │   │       └── queue-shutdown.ts      # Nitro 'close' hook → stopQueue() for graceful pg-boss shutdown

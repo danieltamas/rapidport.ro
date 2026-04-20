@@ -8,6 +8,27 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-jobs` Wave 4b — pay + download + resync
+
+**Merge commit:** `95a78ba` (group `job/phase2-nuxt/api-jobs-4b` → main, --no-ff)
+
+**Task commits (squashed into group):**
+- `85443ee` — `feat(api): POST /api/jobs/[id]/pay — Stripe PaymentIntent w/ idempotency`
+- `8a98ad6` — `feat(api): GET /api/jobs/[id]/download + POST .../resync`
+
+**Summary:** 2 parallel workers. `api-jobs-pay` shipped via worker; `api-jobs-download-resync` was orchestrator-direct salvage (worker hit harness Bash-denied bug AND wrote files to canonical paths in main checkout — handler files were sound, picked up + committed on a fresh task branch).
+
+**New endpoints on main:**
+- `POST /api/jobs/[id]/pay` — flat 499 RON + 21% VAT = 604 RON (60_400 bani). State guard: `status='mapped' || progressStage='reviewing'`. Optional body `{billingEmail?}` writes through to `jobs.billingEmail`. Idempotent re-click: existing non-failed `payments` row → `stripe.paymentIntents.retrieve` and re-return `client_secret`. New intent uses `automatic_payment_methods` + idempotency key `job_{id}_pay`. INSERT `payments` row on first success. Returns `{clientSecret, amount, currency}` only — never the full intent.
+- `GET /api/jobs/[id]/download` — state guard `status='succeeded'`. Streams `/data/jobs/{id}/output.zip` with `Content-Disposition: attachment; filename="rapidport-{idShort}.zip"` and `Cache-Control: private, no-store`. **501 `zip_bundler_unavailable` if no pre-built zip exists** — no `archiver` dep wired yet (deliberate; flagged for follow-up). Today's worker pipeline writes individual files to `output/` but doesn't bundle them; either the worker bundles before marking succeeded, or we add `archiver` here. Either way the access check + state guard + streaming shape are in place.
+- `POST /api/jobs/[id]/resync` — state guard `status='succeeded'`; quota guard `deltaSyncsUsed < deltaSyncsAllowed` (defaults 0/3) → 402 `delta_sync_quota_exhausted` with `{used, allowed}`. Requires `uploadDiskFilename` (post-migration 0003). Publishes `ConvertPayload {job_id, input_path, output_dir, mapping_profile: null}` via `publishConvert()`. Atomic increment of `deltaSyncsUsed` via parameterised `sql` template (`${jobs.deltaSyncsUsed} + 1`). Returns `{ok, deltaSyncsUsed, deltaSyncsAllowed}`.
+
+**Live-keys reminder:** Dani's `.env` has LIVE Stripe keys. The pay handler is wired but a live exercise needs explicit go (test-key swap or small live-amount authorization).
+
+**Follow-up flagged:**
+- `archiver` dep + worker-side bundling for `output.zip` so download stops returning 501.
+- Decision needed if SPEC later wants a separate `delta-sync` pg-boss queue vs. reusing `convert`.
+
 ### Schema fix: `jobs.upload_disk_filename` (Wave 4 → 4b prep)
 
 **Commit:** orchestrator-direct on main; migration `app/drizzle/0003_slow_lyja.sql`.
