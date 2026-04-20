@@ -8,6 +8,27 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `smartbill-client` + `gdpr-cleanup-cron` — SmartBill REST client + scheduled-jobs plugin
+
+**Merge:** `2958488` (branch `job/phase2-nuxt/smartbill-and-cleanup` → main, --no-ff). Single-agent; both plans approved with defaults.
+
+Shared `plugins/schedule.ts` registers all scheduled jobs so the two tasks are one coherent change. Opt-out via `SCHEDULER_ENABLED=false` for secondary dev shells.
+
+**New env (4, boot-validated):** `SMARTBILL_USERNAME`, `SMARTBILL_API_KEY`, `SMARTBILL_CIF`, `SMARTBILL_SERIES` (default `RAPIDPORT`), `SCHEDULER_ENABLED`.
+
+**New `utils/smartbill.ts`:** typed `createInvoice({reference, client: pj|pf, totalRon, description?})` hitting `POST https://ws.smartbill.ro/SBORO/api/invoice` via HTTP Basic. 3× exponential backoff on 5xx/network; fast-fail on 4xx. Typed `SmartBillError` (`kind: 'auth'|'validation'|'server'|'network'|'unknown'`). PJ invoices set `useEFactura: true` so SmartBill auto-queues to SPV when the account is configured.
+
+**Scheduled jobs (cron):**
+- `cleanup.jobs-files` (6h) — batch 100; recursive fs.rm on the job dir (non-fatal ENOENT); `status='expired'` + null PII columns with idempotent WHERE guard. Mirrors admin-delete purge shape.
+- `cleanup.oauth-state` (1h) — DELETE PKCE rows where `createdAt < now() - 10 minutes` (table has no expiresAt column, TTL is by convention).
+- `cleanup.rate-limits` (1h) — DELETE sliding-window rows where `windowStart < now() - 1 hour`.
+- `cleanup.orphan-files` (daily 3am UTC) — readdir `/data/jobs/`, drop UUID-named dirs with no matching `jobs.id` (partial uploads, manual fs edits).
+- `smartbill.invoice-sweep` (5m) — SELECT payments WHERE `status='succeeded' AND smartbill_invoice_id IS NULL AND createdAt > now() - 7 days` (JOINed with jobs for billingEmail); issues invoice via client; updates `smartbillInvoiceId`/`Url`. Escalates to `admin_audit_log` with `action='smartbill_invoice_stuck'` after 20 consecutive failures per payment.
+
+**`utils/queue.ts`:** `getBoss()` is now exported (was private). No other behaviour change — `publishConvert`/`publishDiscover` still the only publish surface.
+
+**Process note:** the scheduler opt-out via env is a v1 compromise. When we scale to N Nitro processes, swap to a Postgres advisory-lock electorate so only one holds the scheduler leadership. Tracked in `PLAN-gdpr-cleanup-cron.md`.
+
 ### `pages-admin` — 8 admin dashboard pages + shell layout
 
 **Merge:** `06c4077` (group `job/phase2-nuxt/pages-admin` → main, --no-ff).

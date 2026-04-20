@@ -125,8 +125,16 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── assert-job-access.ts   # three-way gate: admin (+audit) → owner → anon token → 403
 │   │   │   ├── email.ts               # Resend wrapper, single-instance, sendEmail() — never logs recipient/body
 │   │   │   ├── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
-│   │   │   ├── queue.ts               # pg-boss publisher singleton — publishConvert/publishDiscover, lazy init + createQueue
-│   │   │   └── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
+│   │   │   ├── queue.ts               # pg-boss singleton — getBoss() + publishConvert/publishDiscover
+│   │   │   ├── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
+│   │   │   ├── smartbill.ts           # SmartBill REST client (Basic Auth, 3x exp backoff, SmartBillError taxonomy, PJ useEFactura=true)
+│   │   │   ├── purge-user.ts          # shared GDPR purge — used by DELETE /api/me + DELETE /api/admin/users/[id]
+│   │   │   └── schedule-tasks/
+│   │   │       ├── cleanup-jobs-files.ts        # expire + null PII on /data/jobs/<id>/ dirs (6h)
+│   │   │       ├── cleanup-oauth-state.ts       # drop PKCE rows > 10 min (1h)
+│   │   │       ├── cleanup-rate-limits.ts       # drop sliding-window rows > 1h (1h)
+│   │   │       ├── cleanup-orphan-files.ts      # drop /data/jobs subdirs with no jobs.id (daily)
+│   │   │       └── smartbill-invoice-sweep.ts   # issue invoices for succeeded+unlinked payments (5m)
 │   │   ├── api/
 │   │   │   ├── auth/
 │   │   │   │   ├── magic-link.post.ts       # issue 6-digit PIN email — rate-limited 5/hr per email, fail-closed (name kept for back-compat)
@@ -193,7 +201,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │           └── resync.post.ts       # POST /api/jobs/[id]/resync — quota-gated (deltaSyncsUsed/Allowed); publishConvert() with mapping_profile=null; atomic ++
 │   │   └── plugins/
 │   │       ├── env-check.ts           # side-effect import of env — validation fires at Nitro boot
-│   │       └── queue-shutdown.ts      # Nitro 'close' hook → stopQueue() for graceful pg-boss shutdown
+│   │       ├── queue-shutdown.ts      # Nitro 'close' hook → stopQueue() for graceful pg-boss shutdown
+│   │       └── schedule.ts            # registers 5 cron jobs via pg-boss schedule/work; opt-out via SCHEDULER_ENABLED=false
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
 │   ├── drizzle/
 │   │   ├── 0000_steady_malcolm_colcord.sql   # baseline — jobs (minimal), mapping_cache, ai_usage
