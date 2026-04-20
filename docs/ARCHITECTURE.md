@@ -105,15 +105,19 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── rate-limit.ts          # sliding window on rate_limits table; fail-closed for admin login
 │   │   │   └── user-auth.ts           # /account/* → redirect to /login?next=<path>; /api/me/* + /api/account/* → 401 JSON
 │   │   │                              # (security-headers.ts REMOVED — nuxt-security module handles CSP/HSTS/etc)
+│   │   ├── types/
+│   │   │   └── queue.ts               # snake_case mirror of worker Pydantic ConvertPayload + DiscoverPayload
 │   │   ├── utils/
-│   │   │   ├── env.ts                 # Zod EnvSchema (ADMIN_EMAILS + Resend + Google OAuth); only reader of process.env
+│   │   │   ├── env.ts                 # Zod EnvSchema (ADMIN_EMAILS + Resend + Google OAuth + Stripe); only reader of process.env
 │   │   │   ├── auth-user.ts           # user session lifecycle — SHA-256 hashed tokens, 30d TTL
 │   │   │   ├── auth-admin.ts          # admin session lifecycle — 8h TTL, IP-hash bound, 'admin_session' cookie
 │   │   │   ├── anonymous-token.ts     # per-job access token — cookie job_access_${id}, SameSite Strict
 │   │   │   ├── assert-admin-session.ts # IP drift → revoke+401; allowlist miss → 403
 │   │   │   ├── assert-job-access.ts   # three-way gate: admin (+audit) → owner → anon token → 403
 │   │   │   ├── email.ts               # Resend wrapper, single-instance, sendEmail() — never logs recipient/body
-│   │   │   └── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
+│   │   │   ├── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
+│   │   │   ├── queue.ts               # pg-boss publisher singleton — publishConvert/publishDiscover, lazy init + createQueue
+│   │   │   └── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
 │   │   ├── api/
 │   │   │   ├── auth/
 │   │   │   │   ├── magic-link.post.ts       # issue 6-digit PIN email — rate-limited 5/hr per email, fail-closed (name kept for back-compat)
@@ -133,7 +137,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   └── admin/
 │   │   │       └── logout.post.ts           # revokeAdminSession + audit
 │   │   └── plugins/
-│   │       └── env-check.ts           # side-effect import of env — validation fires at Nitro boot
+│   │       ├── env-check.ts           # side-effect import of env — validation fires at Nitro boot
+│   │       └── queue-shutdown.ts      # Nitro 'close' hook → stopQueue() for graceful pg-boss shutdown
 │   ├── drizzle.config.ts              # drizzle-kit CLI config (documented process.env exception)
 │   ├── drizzle/
 │   │   ├── 0000_steady_malcolm_colcord.sql   # baseline — jobs (minimal), mapping_cache, ai_usage

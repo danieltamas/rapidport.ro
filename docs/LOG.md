@@ -8,6 +8,21 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-jobs` Wave 4 prep — pg-boss publisher + Stripe client + queue payload types
+
+**Commit:** `fa484b4` (orchestrator-direct on main)
+
+**Summary:** Three small server utilities that unlock all 6 Wave 4 workers + Wave 4b pay + Wave 4c stripe webhook. File-disjoint with everything else; no handler code yet.
+
+- `app/server/utils/queue.ts` — pg-boss publisher singleton. `publishConvert(payload)` + `publishDiscover(payload)`. Lazy-initializes the client on first send, calls `boss.createQueue()` for both names (pg-boss v10 requires explicit creation), logs only error names (no payload/PII).
+- `app/server/utils/stripe.ts` — single `stripe` client (no `apiVersion` pin — uses account default), `maxNetworkRetries=2`, `timeout=20s`, `appInfo.name='rapidport.ro'`. Plus `jobPaymentIdempotencyKey(jobId)` → `'job_{id}_pay'` (Stripe's 24h dedup window covers our retry shape).
+- `app/server/types/queue.ts` — snake_case TS mirrors of `worker/src/migrator/consumer.py` Pydantic `ConvertPayload` + `DiscoverPayload`. **Field names match byte-for-byte** — drift = silent worker drops. Both sides documented.
+- `app/server/plugins/queue-shutdown.ts` — Nitro `close` hook calls `stopQueue()` for graceful pg-boss shutdown.
+- `app/server/utils/env.ts` + `.env.example` — three required Stripe vars: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`. Boot fails closed in prod if missing.
+- `app/package.json` — `stripe` added. Mature SDK, no major changes from npm baseline.
+
+**Operational note:** Dani's local `.env` has **LIVE** Stripe keys, not test. Workers can ship `api-jobs-pay` / webhook code, but the first end-to-end exercise should swap to test keys OR be a deliberate small-amount live smoke. Captured in auto-memory.
+
 ### Product pivots + UX hardening + nuxt-security + GDPR endpoints
 
 This session was orchestrator-direct (no task branches) — extensive UX work, product-model clarifications, and four new endpoints (`/api/auth/session`, `/api/me/*`). Not in the formal Phase 2 group system; captured here and in `jobs/HANDOFF.md`.
