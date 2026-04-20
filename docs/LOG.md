@@ -8,6 +8,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### feat(pay): Stripe Elements on /job/[id]/pay — green-path close, Part A
+
+Part A of `PLAN-stripe-elements-and-refund-storno.md`. Adds card entry to the pay flow; the server endpoint was already returning `clientSecret`, only the client UI was missing.
+
+- `app/pages/job/[id]/pay.vue` — added a step machine (`billing | payment | confirming | succeeded | failed`). Submits billing → mounts `PaymentElement` (tabs layout, ro locale, flat theme, `#C72E49` primary) → `stripe.confirmPayment({ redirect: 'always' })` → return_url round-trip via `stripe.retrievePaymentIntent` → navigate to `/job/[id]/status` on succeeded/processing.
+- `app/nuxt.config.ts` — exposed `runtimeConfig.public.stripePublishableKey`; widened CSP for Elements iframes (`m.stripe.network`, `merchant-ui-api.stripe.com`, `hooks.stripe.com`).
+- `app/package.json` — `@stripe/stripe-js@^9.2.0`, dynamic-imported on client only.
+
+Two advisor fixes applied pre-commit: (1) step initializes synchronously from `route.query.payment_intent_client_secret` so SSR matches the confirming-state hydration on 3DS return; (2) `redirect: 'always'` explicit in confirmParams so inline-success paths can't silently strand the user if someone later flips to 'if_required'.
+
+**Required before Dani smokes it:** restart rundev (CSP headers aren't HMR'd); swap `.env` to Stripe test keys + run `stripe listen --forward-to <tunnel>/api/webhooks/stripe`. LIVE keys in `.env` per auto-memory — don't charge without explicit go.
+
+DONE: `jobs/phase2-nuxt/DONE-stripe-elements.md`. Part B (refund/storno with 4h eFactura cutoff) ships on a fresh branch.
+
 ### feat(admin): user-detail surfaces payments list + admin/payments accepts ?userId=
 
 Closed out `jobs/phase2-nuxt/TODO-admin-user-detail-payments.md`. Admin user-detail (`/admin/users/[id]`) was showing four stat counters + a recent-jobs table but no individual payments — admins had to cross-reference `/admin/payments` by email or job id.

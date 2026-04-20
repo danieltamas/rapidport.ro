@@ -53,6 +53,16 @@ export default defineNuxtConfig({
     },
   },
 
+  // Client-exposed runtime config. `public` values are bundled into the SSR
+  // payload and available via `useRuntimeConfig().public.*` in Vue components.
+  // STRIPE_PUBLISHABLE_KEY is safe to expose by design — it's the publishable
+  // half of the keypair (the live secret is server-only in env.ts).
+  runtimeConfig: {
+    public: {
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+    },
+  },
+
   css: [
     '~/assets/css/tailwind.css',
     '@fontsource/inter/400.css',
@@ -175,10 +185,16 @@ export default defineNuxtConfig({
         'connect-src': [
           "'self'",
           'https://api.stripe.com',
+          'https://m.stripe.network',
+          'https://merchant-ui-api.stripe.com',
           'https://accounts.google.com',
         ],
         'font-src': ["'self'", 'data:'],
-        'frame-src': ['https://js.stripe.com', 'https://accounts.google.com'],
+        'frame-src': [
+          'https://js.stripe.com',
+          'https://hooks.stripe.com',
+          'https://accounts.google.com',
+        ],
         'frame-ancestors': ["'none'"],
         'form-action': ["'self'"],
         'upgrade-insecure-requests': true,

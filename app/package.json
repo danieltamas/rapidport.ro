@@ -21,6 +21,7 @@
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@stripe/stripe-js": "^9.2.0",
     "@tailwindcss/vite": "^4.2.2",
     "@vueuse/core": "^14.2.1",
     "class-variance-authority": "^0.7.1",
