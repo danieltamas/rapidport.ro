@@ -4,7 +4,7 @@
 
 The full critical-path code is now on main. To actually ship a paid migration end-to-end, you need:
 1. **Live Stripe smoke** — see live-keys note below.
-2. **Worker output bundling.** `download.get.ts` returns 501 unless `/data/jobs/{id}/output.zip` exists. The worker writes individual files; either bundle on the worker side (preferred — write a `bundle()` step at the end of the convert pipeline) or add `archiver` to Nuxt and stream-zip in the handler. Worker side is cleaner.
+2. ~~Worker output bundling~~ **DONE** (`95ea945`): `worker/src/migrator/utils/archive.py:bundle_output()` zips `output/` → `output.zip` atomically inside `consumer.run_convert`, before `_mark_rp_succeeded`. Download handler no longer 501s on the happy path.
 3. **Email templates** to resolve the TODO in the webhook (payment-confirmed) and other notifications.
 4. **SmartBill client** — blocked on SPEC Q#3 (invoice series name). The webhook intentionally leaves `payments.smartbill_invoice_id = NULL`; the future smartbill-client task sweeps those rows.
 

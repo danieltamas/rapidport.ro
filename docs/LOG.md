@@ -8,6 +8,17 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### Worker `bundle_output()` — unblocks `GET /api/jobs/[id]/download`
+
+**Merge commit:** `95ea945` (`job/phase2-nuxt/worker-bundle-output` → main, single-agent, --no-ff). Closes the highest-blocker gap from end of Wave 4b.
+
+- `worker/src/migrator/utils/archive.py`: new `bundle_output(output_dir) -> Path`. Stdlib `zipfile.ZIP_DEFLATED` only — no new deps. Atomic write via `output.zip.tmp` + `os.replace` so the Nuxt download handler never observes a half-written file. Raises `ArchiveError` on missing-dir / empty-dir / write failure.
+- `worker/src/migrator/consumer.py`: call `bundle_output(output_dir)` after `write_report_pdf` and before `_mark_rp_succeeded` — SSE 'done' then implies the zip is ready. Bundling failure raises `RuntimeError("bundle_failed: ...")` which lands in the existing `_handle_job` except branch and marks the job failed (better than 'succeeded' jobs that 501 on download).
+
+End-to-end loop is now fully wired: upload → discover → mapping → pay → webhook → convert → **bundle** → succeeded → download streams `output.zip`.
+
+Validation: `python3 -m py_compile` clean. `ruff` / `mypy` not installed in this dev env — flagged for next worker session.
+
 ### `api-webhooks-stripe` Wave 4c — Stripe webhook receiver
 
 **Merge commit:** `04327f0` (`job/phase2-nuxt/api-webhooks-stripe` → main, --no-ff). Single-agent (orchestrator) per CLAUDE.md plan-then-implement for risky integrations; plan committed at `740a758` and approved by Dani with sensible defaults (no schema change, `paid+queued`, defer email).
