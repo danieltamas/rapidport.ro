@@ -8,6 +8,12 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### Schema fix: `jobs.upload_disk_filename` (Wave 4 → 4b prep)
+
+**Commit:** orchestrator-direct on main; migration `app/drizzle/0003_slow_lyja.sql`.
+
+Closes the wiring gap flagged at Wave 4 close. Single additive nullable column. Upload handler now persists both `uploadFilename` (display) + `uploadDiskFilename` (server name); `discover.post.ts` reads the column and the readdir branch is gone. Download/resync (Wave 4b) and `api-webhooks-stripe`'s `publishConvert` (Wave 4c) can use the column without inferring the path. Applied locally via `drizzle-kit migrate`.
+
 ### `api-jobs` Wave 4 — 6 user-facing job handlers shipped to main
 
 **Merge commit:** `437edaf` (group `job/phase2-nuxt/api-jobs` → main, --no-ff)
