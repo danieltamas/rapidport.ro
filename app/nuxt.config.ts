@@ -154,31 +154,32 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2025-10-15',
 
-  // nuxt-security owns CSP + headers (replaces the hand-rolled
-  // server/middleware/security-headers.ts). Nonces are injected into SSR inline
-  // scripts/styles so the strict CSP works with Nuxt/Vite payloads.
+  // nuxt-security owns CSP + headers in prod (replaces the hand-rolled
+  // server/middleware/security-headers.ts). Nonces are injected into SSR
+  // inline scripts/styles so the strict CSP works with Nuxt/Vite payloads.
+  //
+  // In DEV everything except COOP is turned off: nonce injection, CSP, SRI,
+  // HSTS, permissions-policy all cost per-response work (HTML parse + token
+  // replace for nonce alone is the biggest one), and the dev surface is
+  // localhost-only so the attack-model payoff is nil. COOP stays set to
+  // 'unsafe-none' because the admin OAuth popup flow needs it even in dev
+  // (Chrome's default policy otherwise severs window.opener).
   //
   // Our own middleware stays: csrf.ts (double-submit cookie) + rate-limit.ts
   // (table-backed per SPEC §S.10). nuxt-security's rateLimiter/csrf are off
   // because we already implement them with our chosen semantics.
-  security: {
+  security: process.env.NODE_ENV === 'production' ? {
     nonce: true,
-    // SRI hash computation runs on every asset served; in dev, HMR churns
-    // modules and each cycle recomputes hashes. Keep it prod-only (that's the
-    // attack surface that matters anyway — dev is already localhost-bound).
-    sri: process.env.NODE_ENV === 'production',
+    sri: true,
     rateLimiter: false,
     csrf: false,
     corsHandler: false, // Nitro routeRules above handle CORS for /api/**
     strict: false,
     hidePoweredBy: true,
-    removeLoggers: process.env.NODE_ENV === 'production',
+    removeLoggers: true,
     ssg: {
-      // Same story: hashScripts/hashStyles are both prod-only — dev assets
-      // don't need the integrity marker and recomputing on every HMR is
-      // measurable overhead on a large components tree.
-      hashScripts: process.env.NODE_ENV === 'production',
-      hashStyles: process.env.NODE_ENV === 'production',
+      hashScripts: true,
+      hashStyles: true,
       nitroHeaders: true,
       exportToPresets: true,
     },
@@ -188,14 +189,15 @@ export default defineNuxtConfig({
       // Stripe) that don't send their own CORP — disable.
       crossOriginEmbedderPolicy: false,
       // COOP must be 'unsafe-none' for the admin OAuth popup flow to work.
-      // Rationale: 'same-origin-allow-popups' only retains the opener when the
-      // popup sets COOP to 'unsafe-none' — popups that inherit our OWN COOP
-      // (same-origin-allow-popups) still get their opener severed, which was
-      // producing "window.closed blocked by COOP" in the browser console and
-      // breaking window.opener.postMessage from /oauth/close. Lexito works
-      // because its gateway doesn't set COOP at all. Setting 'unsafe-none'
-      // globally is equivalent for our purposes — we already rely on SameSite
-      // cookies + CSRF tokens + CSP rather than COOP for cross-context isolation.
+      // Rationale: 'same-origin-allow-popups' only retains the opener when
+      // the popup sets COOP to 'unsafe-none' — popups that inherit our OWN
+      // COOP (same-origin-allow-popups) still get their opener severed,
+      // which produces "window.closed blocked by COOP" in the browser
+      // console and breaks window.opener.postMessage from /oauth/close.
+      // Lexito works because its gateway doesn't set COOP at all. Setting
+      // 'unsafe-none' globally is equivalent for our purposes — we already
+      // rely on SameSite cookies + CSRF tokens + CSP rather than COOP for
+      // cross-context isolation.
       crossOriginOpenerPolicy: 'unsafe-none',
       referrerPolicy: 'strict-origin-when-cross-origin',
       contentSecurityPolicy: {
@@ -242,6 +244,33 @@ export default defineNuxtConfig({
         includeSubdomains: true,
         preload: true,
       },
+    },
+  } : {
+    // DEV — minimal. Only COOP so OAuth popups work. Everything else off,
+    // which skips the per-response HTML parse for nonce injection + CSP
+    // stringification + hash computations.
+    nonce: false,
+    sri: false,
+    rateLimiter: false,
+    csrf: false,
+    corsHandler: false,
+    strict: false,
+    hidePoweredBy: true,
+    removeLoggers: false,
+    ssg: {
+      hashScripts: false,
+      hashStyles: false,
+      nitroHeaders: false,
+      exportToPresets: false,
+    },
+    headers: {
+      crossOriginResourcePolicy: 'cross-origin',
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: 'unsafe-none',
+      contentSecurityPolicy: false,
+      strictTransportSecurity: false,
+      referrerPolicy: false,
+      permissionsPolicy: false,
     },
   },
 })
