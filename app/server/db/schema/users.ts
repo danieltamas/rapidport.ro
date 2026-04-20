@@ -12,6 +12,11 @@ export const users = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    // blockedAt is the admin-imposed block (separate from GDPR delete). When set,
+    // getUserSession returns null and the user is treated as logged-out without
+    // losing their account. Cleared by `POST /api/admin/users/[id]/unblock`.
+    blockedAt: timestamp('blocked_at', { withTimezone: true }),
+    blockedReason: text('blocked_reason'),
   },
   (t) => ({
     emailHashIdx: index().on(t.emailHash),

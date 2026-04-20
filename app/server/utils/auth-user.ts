@@ -69,6 +69,9 @@ export async function getUserSession(event: H3Event): Promise<UserSession | null
     const tokenHash = hashToken(token);
     const now = new Date();
 
+    // Admin-blocked users are treated as logged-out without revoking their
+    // sessions (sessions stay so we can re-authenticate cleanly on unblock).
+    // GDPR-deleted users get the same treatment via the deletedAt column.
     const rows = await db
       .select({
         sessionId: sessions.id,
@@ -84,6 +87,8 @@ export async function getUserSession(event: H3Event): Promise<UserSession | null
           eq(sessions.tokenHash, tokenHash),
           isNull(sessions.revokedAt),
           gt(sessions.expiresAt, now),
+          isNull(users.blockedAt),
+          isNull(users.deletedAt),
         ),
       )
       .limit(1);
