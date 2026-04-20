@@ -26,6 +26,7 @@ const ROUTES: readonly RouteRule[] = [
   { method: 'POST', pathPrefix: '/api/jobs', match: 'exact', limit: 10, windowSec: 3600, keyBy: 'ip' },
   { method: 'PUT', pathPrefix: '/api/jobs/', match: 'suffix', suffix: '/upload', limit: 3, windowSec: 3600, keyBy: 'ip' },
   { method: 'GET', pathPrefix: '/admin/login', match: 'exact', limit: 10, windowSec: 3600, keyBy: 'ip', failClosed: true },
+  { method: 'POST', pathPrefix: '/api/anaf/lookup', match: 'exact', limit: 30, windowSec: 3600, keyBy: 'ip' },
 ];
 
 function findRule(method: string, path: string): RouteRule | undefined {
