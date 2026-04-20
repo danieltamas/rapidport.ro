@@ -38,7 +38,8 @@ import {
 import type Stripe from 'stripe';
 import { z } from 'zod';
 import { db } from '../../db/client';
-import { jobs, payments, stripeEvents } from '../../db/schema';
+import { jobs, payments, stripeEvents, users } from '../../db/schema';
+import { sendPaymentConfirmedEmail } from '../../emails/payment-confirmed';
 import type { ConvertPayload } from '../../types/queue';
 import { env } from '../../utils/env';
 import { publishConvert } from '../../utils/queue';
@@ -147,10 +148,18 @@ export default defineEventHandler(async (event) => {
     })
     .where(eq(jobs.id, jobId.data));
 
-  // 5e. Lookup uploadDiskFilename for the convert payload.
+  // 5e. Lookup uploadDiskFilename for the convert payload + billing email for
+  // the confirmation email. billingEmail is the canonical recipient (set at
+  // pay time); fall back to the linked user's email for logged-in flows that
+  // didn't explicitly fill in billingEmail.
   const [job] = await db
-    .select({ uploadDiskFilename: jobs.uploadDiskFilename })
+    .select({
+      uploadDiskFilename: jobs.uploadDiskFilename,
+      billingEmail: jobs.billingEmail,
+      userEmail: users.email,
+    })
     .from(jobs)
+    .leftJoin(users, eq(jobs.userId, users.id))
     .where(eq(jobs.id, jobId.data))
     .limit(1);
   if (!job?.uploadDiskFilename) {
@@ -183,12 +192,22 @@ export default defineEventHandler(async (event) => {
     // Intentional: still return 200. Sweep cron will re-enqueue.
   }
 
-  // TODO(email-templates): once app/server/emails/payment-confirmed.vue exists,
-  // call sendEmail({to: job.billingEmail, subject: '...', html: render(...)}).
-  // Not implemented here so we don't ship throwaway inline copy.
+  // Confirmation email — fire-and-forget; failure is logged inside the helper
+  // and does not affect the webhook response. Skip if no recipient is known
+  // (anonymous flow with no billingEmail captured).
+  const recipient = job.billingEmail ?? job.userEmail;
+  if (recipient) {
+    await sendPaymentConfirmedEmail(jobId.data, recipient);
+  } else {
+    console.warn('payment_confirmed_email_skipped_no_recipient', {
+      eventId: stripeEvent.id,
+      jobId: jobId.data,
+    });
+  }
 
   // TODO(smartbill-client): the future smartbill-client task should sweep
-  // `payments WHERE status='succeeded' AND smartbill_invoice_id IS NULL`.
+  // `payments WHERE status='succeeded' AND smartbill_invoice_id IS NULL` and
+  // issue the invoice under series RAPIDPORT (Gamerina SRL).
 
   return { ok: true };
 });
