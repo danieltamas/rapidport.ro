@@ -24,9 +24,37 @@ import { jobPaymentIdempotencyKey, stripe } from '../../../utils/stripe';
 
 const ParamsSchema = z.object({ id: z.string().uuid() });
 
+// billingInfo is captured on the pay page and persisted to payments.billingInfo
+// (jsonb). Consumed verbatim by the SmartBill invoice sweep — its shape MUST
+// include `entity: 'pj' | 'pf'` + `name` at minimum; PJ entries also need
+// `cui` + `address` to issue a company invoice.
+// `anafVerifiedAt` is stamped from the /api/anaf/lookup proxy when the CUI
+// was resolved via demoanaf; kept so admins can see who was verified vs.
+// manually entered.
+const BillingInfoSchema = z.discriminatedUnion('entity', [
+  z.object({
+    entity: z.literal('pj'),
+    name: z.string().min(1).max(255),
+    cui: z.string().min(2).max(16),
+    address: z.string().min(1).max(500),
+    regCom: z.string().max(32).optional(),
+    email: z.string().email().max(255).optional(),
+    anafVerifiedAt: z.string().datetime().optional(),
+    anafVatRegistered: z.boolean().optional(),
+    anafCashBasisVat: z.boolean().optional(),
+  }),
+  z.object({
+    entity: z.literal('pf'),
+    name: z.string().min(1).max(255),
+    address: z.string().max(500).optional(),
+    email: z.string().email().max(255).optional(),
+  }),
+]);
+
 const BodySchema = z
   .object({
     billingEmail: z.string().email().max(255).optional(),
+    billingInfo: BillingInfoSchema.optional(),
   })
   .strict();
 
@@ -109,7 +137,15 @@ export default defineEventHandler(async (event) => {
       amount: AMOUNT_BANI,
       currency: CURRENCY,
       status: intent.status,
+      billingInfo: body.billingInfo ?? null,
     });
+  } else if (body.billingInfo) {
+    // Re-click after a first-attempt create: let the user update billingInfo
+    // they may have corrected client-side between attempts.
+    await db
+      .update(payments)
+      .set({ billingInfo: body.billingInfo })
+      .where(eq(payments.id, existing.id));
   }
 
   return {
