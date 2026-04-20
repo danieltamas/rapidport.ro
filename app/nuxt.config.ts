@@ -89,7 +89,10 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
     server: {
-      allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1'],
+      // Leading dot = wildcard for the subdomain. `.trycloudflare.com` lets ad-hoc
+      // `cloudflared tunnel --url http://localhost:3015` shares with the team work
+      // without re-editing this file every time the random subdomain rotates.
+      allowedHosts: ['rapidport.ro', 'localhost', '127.0.0.1', '.trycloudflare.com'],
     },
   },
   compatibilityDate: '2025-10-15',
