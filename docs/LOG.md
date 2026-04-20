@@ -8,6 +8,16 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### fix(account): idempotent DELETE /api/me/sessions/[id] + refresh on error
+
+Dani reported a 404 "Session not found" when clicking Revocă on an older session from `/account/security`, despite the row being visible in the list. DB check showed the session was already revoked (`revoked_at` set earlier in the day — likely by a prior "Deconectează celelalte" run or stale tab). The UI was rendering cached `useAsyncData` state; the DELETE handler correctly filtered on `isNull(revokedAt)` and returned 404.
+
+Fix (two-part):
+- `app/server/api/me/sessions/[id].delete.ts` — split into ownership check + idempotent revoke. 404 only when the session doesn't exist OR isn't owned by the caller. If it exists and belongs to them but is already revoked, return `{ ok: true }` without a second UPDATE. DELETE is now idempotent, which matches the HTTP semantics of "the resource ends up gone".
+- `app/pages/account/security.vue` — `revokeOneSession` moved `refreshSessions()` into `finally` + swallows the fetch error. Any failure path still re-fetches the list, so a stale row disappears instead of leaving the user stuck.
+
+No schema or auth changes. The ownership check preserves the security property (can't probe other users' session IDs).
+
 ### Admin UX hardening — OAuth popup, theme, mobile, perf, logout confirm
 
 Several back-to-back commits (`3074a50`, `6dd6ea4`, `7104f65`, `aab642b`, `8e658d8`, `9ff29e4`, `c56e12c`, `f22f199`) as Dani exercised the admin surface. Summarized end-state, not blow-by-blow.

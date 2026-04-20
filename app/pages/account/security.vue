@@ -124,8 +124,11 @@ async function revokeOneSession() {
       method: 'DELETE',
       headers: { 'x-csrf-token': readCsrf() },
     })
-    await refreshSessions()
+  } catch {
+    // Swallow — always refresh below so a stale row (already revoked elsewhere)
+    // disappears from the UI instead of leaving the user stuck on a 404.
   } finally {
+    await refreshSessions()
     revokeSessionLoading.value = false
     revokeSessionOpen.value = false
     pendingRevokeId.value = null
