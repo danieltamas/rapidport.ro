@@ -8,6 +8,18 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### perf(dev): disable `debug` + prod-only SRI/hashScripts — slow HMR fix
+
+Dani reported dev reloads were still slow even though memory was down to ~400–500MB from the earlier ~1GB fix. Cause: `debug: process.env.NODE_ENV === 'development'` in `nuxt.config.ts` had been copied verbatim from a wam.* config reference. Nuxt's `debug: true` enables per-request instrumentation + plugin-load traces + HMR chatter that measurably slows every reload.
+
+Additionally, `nuxt-security.sri: true` + `security.ssg.hashScripts: true` were unconditional — both compute integrity hashes over every asset, which HMR cycles repeatedly. The hashes only matter in prod (attack surface is browsers hitting the live site; dev is localhost-bound).
+
+Changes in `app/nuxt.config.ts`:
+- `debug: false` unconditionally (flip back to `true` only when actively debugging Nuxt internals).
+- `security.sri` and `security.ssg.hashScripts` → `process.env.NODE_ENV === 'production'`. `hashStyles` was already prod-only; this brings the sibling flags in line.
+
+Also cleared `.nuxt/` and `node_modules/.cache` on the dev worktree so the next `rundev` boot is from a clean cache — stale vite chunks can hide perf fixes.
+
 ### feat(queue): is_resync flag on ConvertPayload + worker stamps last_run_was_resync
 
 HANDOFF Priority 2.5 plumbing. Adds the `is_resync` boolean to the pg-boss convert payload (TS mirror + Pydantic model) and a `jobs.last_run_was_resync` column stamped by the worker on successful completion — migration 0007. Enables the future sync-complete email sweep to distinguish a delta-sync finish from an initial-convert finish without reusing the per-type sent-at column (which would only fire once).

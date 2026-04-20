@@ -26,7 +26,11 @@ export default defineNuxtConfig({
   },
   srcDir: '.',
 
-  debug: process.env.NODE_ENV === 'development',
+  // `debug: true` enables very verbose Nuxt/Nitro instrumentation — plugin load
+  // traces, per-request timings, HMR chatter — and measurably slows dev reload
+  // (cold boot + HMR round-trips both pay the tax). Leave it off by default; flip
+  // to true only when actively debugging a Nuxt internals issue.
+  debug: false,
 
   // Dev memory footprint controls — parity with the wam.3.0 / wam.4.0 configs.
   // Before these, this project's `nuxt dev` sat at ~1 GB RSS while other Nuxt
@@ -137,7 +141,10 @@ export default defineNuxtConfig({
   // because we already implement them with our chosen semantics.
   security: {
     nonce: true,
-    sri: true,
+    // SRI hash computation runs on every asset served; in dev, HMR churns
+    // modules and each cycle recomputes hashes. Keep it prod-only (that's the
+    // attack surface that matters anyway — dev is already localhost-bound).
+    sri: process.env.NODE_ENV === 'production',
     rateLimiter: false,
     csrf: false,
     corsHandler: false, // Nitro routeRules above handle CORS for /api/**
@@ -145,7 +152,10 @@ export default defineNuxtConfig({
     hidePoweredBy: true,
     removeLoggers: process.env.NODE_ENV === 'production',
     ssg: {
-      hashScripts: true,
+      // Same story: hashScripts/hashStyles are both prod-only — dev assets
+      // don't need the integrity marker and recomputing on every HMR is
+      // measurable overhead on a large components tree.
+      hashScripts: process.env.NODE_ENV === 'production',
       hashStyles: process.env.NODE_ENV === 'production',
       nitroHeaders: true,
       exportToPresets: true,
