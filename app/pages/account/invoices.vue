@@ -15,7 +15,7 @@ const invoices = [
   { id: 'inv_4', series: 'RAPIDPORT-2026-0012', date: '2026-03-08', amount: 299, jobRef: 'SC Delta Contabilitate SRL', pdfUrl: '#' },
 ]
 
-const vatRate = 0.19
+const vatRate = 0.21
 const formatRon = (n: number) => new Intl.NumberFormat('ro-RO', { minimumFractionDigits: 0 }).format(n)
 </script>
 
@@ -48,7 +48,7 @@ const formatRon = (n: number) => new Intl.NumberFormat('ro-RO', { minimumFractio
                   <th class="text-left px-5 py-3 font-semibold w-36">Data</th>
                   <th class="text-left px-5 py-3 font-semibold">Portare</th>
                   <th class="text-right px-5 py-3 font-semibold w-36">Fără TVA</th>
-                  <th class="text-right px-5 py-3 font-semibold w-32">TVA 19%</th>
+                  <th class="text-right px-5 py-3 font-semibold w-32">TVA 21%</th>
                   <th class="text-right px-5 py-3 font-semibold w-36">Total</th>
                   <th class="text-left px-5 py-3 font-semibold w-28">Status</th>
                   <th class="text-right px-5 py-3 font-semibold w-28">PDF</th>

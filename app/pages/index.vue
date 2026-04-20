@@ -452,7 +452,7 @@ const faqs = [
             Plată unică. Fără abonament. Factură cu TVA.
           </h2>
           <p class="mt-4 text-base text-muted-foreground max-w-2xl">
-            Prețurile afișate sunt fără TVA. Factură cu TVA 19% emisă automat prin SmartBill și transmisă prin eFactura către ANAF.
+            Prețurile afișate sunt fără TVA. Factură cu TVA 21% emisă automat prin SmartBill și transmisă prin eFactura către ANAF.
           </p>
         </div>
 
@@ -520,7 +520,7 @@ const faqs = [
 
         <p class="mt-6 text-sm text-muted-foreground max-w-2xl leading-relaxed">
           <span class="text-foreground font-medium">Prețurile afișate sunt fără TVA.</span>
-          Factură cu TVA 19% emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON + TVA per rulare.
+          Factură cu TVA 21% emisă automat prin SmartBill și transmisă prin eFactura către ANAF. Sincronizare delta suplimentară: 99 RON + TVA per rulare.
         </p>
       </div>
     </section>

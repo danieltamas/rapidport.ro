@@ -22,7 +22,7 @@ const form = ref({
 const consent = ref(false)
 
 const priceNoVat = 499
-const vat = Math.round(priceNoVat * 0.19)
+const vat = Math.round(priceNoVat * 0.21)
 const total = priceNoVat + vat
 </script>
 
@@ -165,7 +165,7 @@ const total = priceNoVat + vat
                     <span class="font-mono tabular-nums">{{ priceNoVat }},00 RON</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-muted-foreground">TVA 19%</span>
+                    <span class="text-muted-foreground">TVA 21%</span>
                     <span class="font-mono tabular-nums">{{ vat }},00 RON</span>
                   </div>
                 </div>
