@@ -58,6 +58,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── profiles/index.vue     # list + promote/hide dialogs
 │   │   │   ├── audit/index.vue        # paginated admin_audit_log read + expandable details
 │   │   │   └── sessions/index.vue     # list active admin sessions + revoke (self-lockout guard)
+│   │   ├── oauth/
+│   │   │   └── close.vue              # admin OAuth popup's final stop — window.opener.postMessage + window.close()
 │   │   ├── job/[id]/
 │   │   │   ├── discovery.vue          # (pre-existing)
 │   │   │   ├── mapping.vue            # (pre-existing)
@@ -129,6 +131,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
 │   │   │   ├── smartbill.ts           # SmartBill REST client (Basic Auth, 3x exp backoff, SmartBillError taxonomy, PJ useEFactura=true)
 │   │   │   ├── anaf.ts                # demoanaf.ro client (Dani's product) — CUI → company lookup w/ async VAT resolution
+│   │   │   ├── admin-audit.ts         # auditRead() — fire-and-forget admin_audit_log insert for READ endpoints; mutation endpoints keep their transactional audit
 │   │   │   ├── purge-user.ts          # shared GDPR purge — used by DELETE /api/me + DELETE /api/admin/users/[id]
 │   │   │   └── schedule-tasks/
 │   │   │       ├── cleanup-jobs-files.ts        # expire + null PII on /data/jobs/<id>/ dirs (6h)
@@ -154,6 +157,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
 │   │   │   ├── anaf/
 │   │   │   │   └── lookup.post.ts           # POST /api/anaf/lookup — proxy to demoanaf.ro CUI lookup (30/hr/IP rate limit)
+│   │   │   ├── auth/
+│   │   │   │   └── admin-session.get.ts     # GET /api/auth/admin-session — {authed, email?} probe (not under /api/admin/* so middleware returns JSON either way)
 │   │   │   ├── webhooks/
 │   │   │   │   └── stripe.post.ts           # Stripe webhook receiver — HMAC verify, 5-min replay window, dedup via stripe_events, payment_intent.succeeded → mark paid+queued + publishConvert + payment-confirmed email
 │   │   │   ├── admin/

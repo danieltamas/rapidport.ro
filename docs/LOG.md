@@ -8,6 +8,49 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### Admin UX hardening — OAuth popup, theme, mobile, perf, logout confirm
+
+Several back-to-back commits (`3074a50`, `6dd6ea4`, `7104f65`, `aab642b`, `8e658d8`, `9ff29e4`, `c56e12c`, `f22f199`) as Dani exercised the admin surface. Summarized end-state, not blow-by-blow.
+
+**Admin middleware + theme + centering (`3074a50`, `6dd6ea4`)**
+- `admin-auth.ts` — the page-prefix check was `pathname.startsWith('/admin/')` which missed the bare `/admin` route (trailing-slash mismatch). Unauth users landed on the dashboard shell with a flashed 401 from the API call. Now matches `/admin` AND `/admin/*`.
+- `layouts/admin.vue` — dark class moved to `<html>` via `useHead({htmlAttrs:{class:'dark'}})`. The class on the layout root wasn't propagating to shadcn Dialog portals (they render into `document.body`, outside the layout subtree) which showed up as half-dark-half-light admin pages.
+- All 10 admin page containers normalized to `px-4 md:px-6 py-6 max-w-[1400px] mx-auto`. Was drift between 1400px and 1600px with no `mx-auto` — pages felt like they shifted when tabbing between them.
+- Mobile drawer (<md): sidebar hides, hamburger in topbar opens a slide-in 72w / 85vw max drawer with fade overlay; click-overlay or route change closes it. Topbar padding tightens to `px-3` on mobile.
+- The floating "ADMIN — all actions logged" red banner is gone from both the login page and the in-app topbar (Dani: "wtf is with it?"). Audit trail is a platform property, not UI chrome.
+
+**Admin OAuth popup (`7104f65` → `8e658d8` → `9ff29e4` → `f22f199`)**
+The real answer was one config line; took four commits to get there because each fix exposed the next layer:
+1. First pass used BroadcastChannel + polling + `localStorage` + closeWatcher grace retries — all workarounds for a COOP severance I should've fixed at the header.
+2. Then switched to `same-origin-allow-popups` + plain postMessage (Lexito-style). That *still* didn't work — the console showed "Cross-Origin-Opener-Policy policy would block the window.closed call."
+3. Root cause: `same-origin-allow-popups` on parent only retains the opener when the popup's COOP is `unsafe-none`. Our popup inherited our `same-origin-allow-popups` too, so the opener was severed.
+4. Final: `crossOriginOpenerPolicy: 'unsafe-none'` globally. Lexito's equivalent is that its gateway sets no COOP at all. Rapidport's threat model is covered by SameSite cookies + CSRF + CSP; COOP wasn't pulling its weight.
+
+End state:
+- `app/server/api/auth/google/start.get.ts` — accepts `?popup=1`, prefixes PKCE state with `p:` so callback can detect popup mode. Backward-compat: without the flag, still does the full-page-redirect flow.
+- `app/server/api/auth/google/callback.get.ts` — branches every exit path: popup mode redirects to `/oauth/close?status=...&code=...`; non-popup mode 303s back to `/admin/login` or `/admin`.
+- `app/pages/oauth/close.vue` (NEW) — `window.opener.postMessage(payload, origin)` + `setTimeout(window.close, 100)`.
+- `app/pages/admin/login.vue` — Lexito-style message listener + popup-close watcher (with a pending-timeout latch so a success message arriving between "popup closed" and "grace timer" wins cleanly).
+- `app/server/api/auth/admin-session.get.ts` (NEW) — small probe, not needed for the final flow but kept for symmetry and for future "am I signed in" UI.
+- Also IP-binding in `assertAdminSession` is skipped when `NODE_ENV !== 'production'` — dev networking (cloudflared, docker bridges, VPN) rotates the client IP, which was revoking sessions mid-session and kicking the admin back to login every few refreshes.
+
+**Performance (`9ff29e4`, `c56e12c`)**
+- `/api/admin/sessions` was 2.26s, others 450–680ms. Audit insert was synchronous BEFORE the data query — blocked every read on a DB round-trip. Added `app/server/utils/admin-audit.ts:auditRead(event, admin, action, opts?)` — fire-and-forget insert. All 10 admin read endpoints refactored to use it; mutation endpoints keep their transactional audit.
+- Admin pages all had `const { data } = await useAsyncData(...)` which blocks client nav until the fetch resolves. Dropped `await`, added `{ lazy: true }` — pages render immediately with existing "Loading…" fallback; data streams in.
+
+**Dev RSS (`c56e12c`)**
+Dev was sitting at ~1 GB; Dani's other Nuxt projects run ~400 MB. Parity settings copied from `wam.3.0` / `wam.4.0`:
+- `sourcemap: false` (top-level) — biggest single win.
+- `experimental.watcher: 'chokidar'` — lighter than default parcel on macOS.
+- `experimental.appManifest: false`.
+- `nitro.typescript.generateTsConfig: false` — was rewriting `.nuxt/tsconfig` every restart, churning the TS server cache.
+- `SCHEDULER_ENABLED` defaults to `production`-only; pg-boss stays dormant in dev unless `SCHEDULER_ENABLED=true` is set.
+
+**Logout confirm (`f22f199`)**
+Admin layout sign-out now routes through `LayoutConfirmDialog` (destructive variant). Desktop + mobile drawer both wired. Previous version fired the logout POST on a single click — CLAUDE.md says every confirmation goes through the shared dialog.
+
+**TODO filed** — `jobs/phase2-nuxt/TODO-admin-user-detail-payments.md`: `/admin/users/[id]` should surface a payments list (not just stat counters). No schema change needed; ~30 lines server (+ 6th parallel query) + ~40 lines client.
+
 ### ANAF integration — demoanaf.ro CUI lookup + billingInfo capture
 
 **Merge:** `3254393`. Dani flagged that all real buyers will be companies, and the pay page was fully mocked — `billingInfo` was never captured. demoanaf.ro is Dani's own product wrapping ANAF + BNR with a Redis cache; free public API, no auth.
