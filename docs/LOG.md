@@ -8,6 +8,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### ANAF integration — demoanaf.ro CUI lookup + billingInfo capture
+
+**Merge:** `3254393`. Dani flagged that all real buyers will be companies, and the pay page was fully mocked — `billingInfo` was never captured. demoanaf.ro is Dani's own product wrapping ANAF + BNR with a Redis cache; free public API, no auth.
+
+- `utils/anaf.ts` — typed client for `GET https://demoanaf.ro/api/company/:cui`. Handles the upstream's async `vatStatus='verifying'` placeholder (the server stays stateless; the client polls). `normalizeCui()` accepts `RO...` or numeric and strips to the numeric form demoanaf wants. Typed `AnafError` kind taxonomy (`not-found`/`rate-limited`/`upstream`/`network`/`invalid-cui`).
+- `api/anaf/lookup.post.ts` — thin proxy. Body Zod `{cui}`. Maps upstream errors → 404/429/502.
+- `middleware/rate-limit.ts` — +30/hr/IP on `POST /api/anaf/lookup`.
+- `api/jobs/[id]/pay.post.ts` — body Zod extended with discriminated-union `BillingInfoSchema` (PJ requires cui+name+address; PF just name). Persists to `payments.billingInfo` on insert; updates on re-click if user corrected fields.
+- `pages/job/[id]/pay.vue` — full rewrite. CUI input → onBlur/Enter/click-search → lookup. Name + address + regCom prefill from first response; VAT badge renders "plătitor TVA · TVA la încasare" / "neplătitor TVA" / "verificare TVA…" / "firmă inactivă" after client-side polling (3s then every 2s up to 20s). Manual edit post-verification clears `anafVerifiedAt` so admin sees "manually overridden". Submit POSTs `{billingEmail, billingInfo}` to `/api/jobs/[id]/pay`.
+
+**Invoice flow now lands correct first-time:** SmartBill sweep reads `payments.billingInfo`, sees `entity='pj'` with real cui+name+address, issues a proper company invoice with `useEFactura=true` instead of the thin PF fallback.
+
+**Stripe Elements / Checkout stays deferred** — submit creates the PaymentIntent + persists billingInfo, but actual card-entry UI is a separate task.
+
 ### Email notification sweep — `mapping-ready` + `conversion-ready`
 
 **Merge:** `8c4c891`. Closes the worker→Nuxt notification gap deferred from email-templates. Uses the scheduler plugin (just shipped).

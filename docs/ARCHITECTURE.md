@@ -128,6 +128,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── queue.ts               # pg-boss singleton — getBoss() + publishConvert/publishDiscover
 │   │   │   ├── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
 │   │   │   ├── smartbill.ts           # SmartBill REST client (Basic Auth, 3x exp backoff, SmartBillError taxonomy, PJ useEFactura=true)
+│   │   │   ├── anaf.ts                # demoanaf.ro client (Dani's product) — CUI → company lookup w/ async VAT resolution
 │   │   │   ├── purge-user.ts          # shared GDPR purge — used by DELETE /api/me + DELETE /api/admin/users/[id]
 │   │   │   └── schedule-tasks/
 │   │   │       ├── cleanup-jobs-files.ts        # expire + null PII on /data/jobs/<id>/ dirs (6h)
@@ -151,6 +152,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── sessions.get.ts          # list active sessions (marks current)
 │   │   │   │   ├── sessions.delete.ts       # revoke all except current
 │   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
+│   │   │   ├── anaf/
+│   │   │   │   └── lookup.post.ts           # POST /api/anaf/lookup — proxy to demoanaf.ro CUI lookup (30/hr/IP rate limit)
 │   │   │   ├── webhooks/
 │   │   │   │   └── stripe.post.ts           # Stripe webhook receiver — HMAC verify, 5-min replay window, dedup via stripe_events, payment_intent.succeeded → mark paid+queued + publishConvert + payment-confirmed email
 │   │   │   ├── admin/
