@@ -134,6 +134,8 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── sessions.get.ts          # list active sessions (marks current)
 │   │   │   │   ├── sessions.delete.ts       # revoke all except current
 │   │   │   │   └── sessions/[id].delete.ts  # revoke one specific
+│   │   │   ├── webhooks/
+│   │   │   │   └── stripe.post.ts           # Stripe webhook receiver — HMAC verify, 5-min replay window, dedup via stripe_events, payment_intent.succeeded → mark paid+queued + publishConvert
 │   │   │   ├── admin/
 │   │   │   │   └── logout.post.ts           # revokeAdminSession + audit
 │   │   │   └── jobs/

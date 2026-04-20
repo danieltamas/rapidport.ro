@@ -8,6 +8,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `api-webhooks-stripe` Wave 4c — Stripe webhook receiver
+
+**Merge commit:** `04327f0` (`job/phase2-nuxt/api-webhooks-stripe` → main, --no-ff). Single-agent (orchestrator) per CLAUDE.md plan-then-implement for risky integrations; plan committed at `740a758` and approved by Dani with sensible defaults (no schema change, `paid+queued`, defer email).
+
+**New endpoint:**
+- `POST /api/webhooks/stripe` — `stripe.webhooks.constructEvent(rawBody, sig, env.STRIPE_WEBHOOK_SECRET, 300)` — 5-min replay window. Dedup via `stripe_events INSERT ON CONFLICT DO NOTHING` keyed by Stripe event id. Only `payment_intent.succeeded` triggers side effects: SELECT `payments` by `stripePaymentIntentId` → mark `succeeded` → UUID-validate `intent.metadata.jobId` → mark `jobs.status='paid' + progressStage='queued'` → SELECT `uploadDiskFilename` (Wave 4 schema fix) → `publishConvert({job_id, input_path, output_dir, mapping_profile: null})`. Every error path that's not "malformed/forged" returns 200 with a structured ack flag (`dedup`, `ignored`, `unknown_intent`, `already_processed`, `missing_jobId`, `missing_upload`) so Stripe stops retrying. publishConvert is try/catch'd — failures log but still 200 (sweep cron is the recovery path).
+
+**TODO carried forward:**
+- `email-templates` task must add `payment-confirmed.vue` and wire it from this handler (TODO marker in code).
+- `smartbill-client` task should sweep `payments WHERE status='succeeded' AND smartbill_invoice_id IS NULL` (TODO marker in code).
+- `observability` task should add a sweep cron for paid jobs that have no `pgboss.convert` row enqueued — recovery for the rare `publishConvert` failure-after-payment-recorded.
+
+**Live-keys reminder still applies:** Dani's `.env` has LIVE Stripe keys. End-to-end exercise needs a deliberate test-key swap + Stripe CLI (`stripe listen --forward-to <tunnel>/api/webhooks/stripe`) OR explicit go on a small live-amount test.
+
 ### `api-jobs` Wave 4b — pay + download + resync
 
 **Merge commit:** `95a78ba` (group `job/phase2-nuxt/api-jobs-4b` → main, --no-ff)

@@ -1,6 +1,12 @@
-# Handoff — api-jobs Wave 4 + 4b shipped, Wave 4c (Stripe webhook) is next
+# Handoff — Wave 4 / 4b / 4c all shipped. Upload→pay→convert→download loop is wired
 
-**Date:** 2026-04-20 (later) | **Last orchestrator session:** Wave 4 prep + 6 handlers + schema fix 0003 + Wave 4b (pay + download/resync) | **Next:** Wave 4c — `api-webhooks-stripe`. Plan written; awaiting approval.
+**Date:** 2026-04-20 (end of session) | **Last orchestrator session:** Wave 4 prep + 6 handlers + schema fix 0003 + Wave 4b (pay + download/resync) + Wave 4c (Stripe webhook). | **Next:** SmartBill client (still SPEC-blocked) OR `email-templates` (Resend) OR ZIP bundling on the worker side so download stops returning 501.
+
+The full critical-path code is now on main. To actually ship a paid migration end-to-end, you need:
+1. **Live Stripe smoke** — see live-keys note below.
+2. **Worker output bundling.** `download.get.ts` returns 501 unless `/data/jobs/{id}/output.zip` exists. The worker writes individual files; either bundle on the worker side (preferred — write a `bundle()` step at the end of the convert pipeline) or add `archiver` to Nuxt and stream-zip in the handler. Worker side is cleaner.
+3. **Email templates** to resolve the TODO in the webhook (payment-confirmed) and other notifications.
+4. **SmartBill client** — blocked on SPEC Q#3 (invoice series name). The webhook intentionally leaves `payments.smartbill_invoice_id = NULL`; the future smartbill-client task sweeps those rows.
 
 ---
 
