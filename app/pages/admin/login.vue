@@ -32,8 +32,11 @@ const signingIn = ref(false)
 let popupRef: Window | null = null
 let messageHandler: ((ev: MessageEvent) => void) | null = null
 let closeWatcher: ReturnType<typeof setInterval> | null = null
+let closeGraceTimer: ReturnType<typeof setTimeout> | null = null
+let aborted = false
 
 function cleanup() {
+  aborted = true
   if (messageHandler) {
     window.removeEventListener('message', messageHandler)
     messageHandler = null
@@ -42,6 +45,10 @@ function cleanup() {
     clearInterval(closeWatcher)
     closeWatcher = null
   }
+  if (closeGraceTimer) {
+    clearTimeout(closeGraceTimer)
+    closeGraceTimer = null
+  }
   try { popupRef?.close() } catch { /* ignore */ }
   popupRef = null
 }
@@ -49,6 +56,7 @@ function cleanup() {
 function signIn() {
   if (signingIn.value) return
   errorCode.value = null
+  aborted = false
 
   // Open synchronously in response to the click — browsers block popups
   // opened after async code.
@@ -93,11 +101,16 @@ function signIn() {
   // forever. Poll popup.closed; on close, give postMessage one more tick
   // to deliver, then reset.
   closeWatcher = setInterval(() => {
-    if (!popup.closed) return
+    if (!popup.closed || aborted) return
     clearInterval(closeWatcher!)
     closeWatcher = null
-    setTimeout(() => {
-      if (!signingIn.value) return // message already handled
+    // Give an in-flight postMessage one more tick to deliver. Track the
+    // timeout id so cleanup() can cancel it — a success message arriving
+    // between "popup closed" and "grace timer fires" has to win.
+    closeGraceTimer = setTimeout(() => {
+      closeGraceTimer = null
+      if (aborted) return // message handler already fired
+      if (!signingIn.value) return
       cleanup()
       if (!errorCode.value) errorCode.value = 'popup_closed'
       signingIn.value = false

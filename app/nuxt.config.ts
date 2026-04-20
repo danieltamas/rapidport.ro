@@ -145,12 +145,16 @@ export default defineNuxtConfig({
       // COEP require-corp would block cross-origin resources (Google OAuth,
       // Stripe) that don't send their own CORP — disable.
       crossOriginEmbedderPolicy: false,
-      // Default nuxt-security policy is 'same-origin' which severs window.opener
-      // when an opened popup navigates cross-origin (Google) and back. That kills
-      // the admin OAuth popup's postMessage back to the opener. 'same-origin-
-      // allow-popups' keeps same-origin isolation for top-level documents but
-      // lets popups retain their opener across cross-origin nav.
-      crossOriginOpenerPolicy: 'same-origin-allow-popups',
+      // COOP must be 'unsafe-none' for the admin OAuth popup flow to work.
+      // Rationale: 'same-origin-allow-popups' only retains the opener when the
+      // popup sets COOP to 'unsafe-none' — popups that inherit our OWN COOP
+      // (same-origin-allow-popups) still get their opener severed, which was
+      // producing "window.closed blocked by COOP" in the browser console and
+      // breaking window.opener.postMessage from /oauth/close. Lexito works
+      // because its gateway doesn't set COOP at all. Setting 'unsafe-none'
+      // globally is equivalent for our purposes — we already rely on SameSite
+      // cookies + CSRF tokens + CSP rather than COOP for cross-context isolation.
+      crossOriginOpenerPolicy: 'unsafe-none',
       referrerPolicy: 'strict-origin-when-cross-origin',
       contentSecurityPolicy: {
         'base-uri': ["'self'"],

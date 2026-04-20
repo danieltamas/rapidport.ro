@@ -57,7 +57,14 @@ function readCsrf(): string {
 }
 
 const loggingOut = ref(false)
-async function logout() {
+const logoutConfirmOpen = ref(false)
+
+function requestLogout() {
+  if (loggingOut.value) return
+  logoutConfirmOpen.value = true
+}
+
+async function performLogout() {
   if (loggingOut.value) return
   loggingOut.value = true
   try {
@@ -120,7 +127,7 @@ async function logout() {
           class="w-full flex items-center gap-3 px-2 py-2 text-sm rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
           :class="collapsed ? 'justify-center' : ''"
           :disabled="loggingOut"
-          @click="logout"
+          @click="requestLogout"
         >
           <LogOut class="size-4 shrink-0" :stroke-width="2" />
           <span v-if="!collapsed">{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>
@@ -189,7 +196,7 @@ async function logout() {
             type="button"
             class="w-full flex items-center gap-3 px-2 py-3 text-sm rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
             :disabled="loggingOut"
-            @click="logout"
+            @click="requestLogout"
           >
             <LogOut class="size-4 shrink-0" :stroke-width="2" />
             <span>{{ loggingOut ? 'Signing out…' : 'Sign out' }}</span>
@@ -218,5 +225,16 @@ async function logout() {
         <slot />
       </main>
     </div>
+
+    <LayoutConfirmDialog
+      v-model:open="logoutConfirmOpen"
+      variant="destructive"
+      title="Sign out?"
+      description="You will be signed out of the admin dashboard on this browser. You can always sign back in with your Google account."
+      confirm-label="Sign out"
+      cancel-label="Cancel"
+      :loading="loggingOut"
+      @confirm="performLogout"
+    />
   </div>
 </template>
