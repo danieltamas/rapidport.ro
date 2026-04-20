@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "upload_disk_filename" text;

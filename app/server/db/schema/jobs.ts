@@ -25,6 +25,11 @@ export const jobs = pgTable(
     sourceSoftware: text('source_software').notNull(),
     targetSoftware: text('target_software').notNull(),
     uploadFilename: text('upload_filename'),
+    // Server-controlled on-disk filename `{randomUUID}.{ext}` under
+    // /data/jobs/{id}/upload/. Distinct from uploadFilename (the user's
+    // original name, kept for display only). Consumers (discover,
+    // download/resync, webhook → publishConvert) MUST use this for I/O.
+    uploadDiskFilename: text('upload_disk_filename'),
     uploadSize: bigint('upload_size', { mode: 'number' }),
     discoveryResult: jsonb('discovery_result'),
     mappingResult: jsonb('mapping_result'),

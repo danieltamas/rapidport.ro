@@ -175,11 +175,15 @@ export default defineEventHandler(async (event) => {
   const diskPath = join(uploadDir, diskName);
   await writeFile(diskPath, data);
 
-  // 7) Update DB — Drizzle only, parameterized.
+  // 7) Update DB — Drizzle only, parameterized. uploadFilename keeps the user's
+  // original name (display only); uploadDiskFilename is the server-controlled
+  // {randomUUID}.{ext} so consumers (discover, download/resync, webhook→convert)
+  // can build the on-disk path without readdir.
   await db
     .update(jobs)
     .set({
       uploadFilename: originalFilename,
+      uploadDiskFilename: diskName,
       uploadSize: data.length,
       progressStage: 'uploaded',
       updatedAt: new Date(),
