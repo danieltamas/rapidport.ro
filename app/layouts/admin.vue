@@ -200,26 +200,17 @@ async function logout() {
 
     <!-- Main column -->
     <div class="flex-1 flex flex-col min-w-0">
-      <header class="h-14 border-b border-border bg-card flex items-center justify-between gap-2 px-3 md:px-6 shrink-0">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <!-- Hamburger (mobile only) -->
-          <button
-            type="button"
-            class="size-9 grid place-items-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer md:hidden shrink-0"
-            aria-label="Open menu"
-            @click="mobileOpen = true"
-          >
-            <Menu class="size-5" :stroke-width="2" />
-          </button>
-          <div class="text-sm text-muted-foreground font-mono truncate">
-            {{ route.path }}
-          </div>
-        </div>
-        <div
-          class="flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/30 px-2 md:px-2.5 py-1 rounded text-[10px] md:text-[11px] font-medium uppercase tracking-wide shrink-0"
+      <header class="h-14 border-b border-border bg-card flex items-center gap-2 px-3 md:px-6 shrink-0">
+        <button
+          type="button"
+          class="size-9 grid place-items-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer md:hidden shrink-0"
+          aria-label="Open menu"
+          @click="mobileOpen = true"
         >
-          <span class="hidden md:inline">ADMIN — all actions logged</span>
-          <span class="md:hidden">ADMIN · logged</span>
+          <Menu class="size-5" :stroke-width="2" />
+        </button>
+        <div class="text-sm text-muted-foreground font-mono truncate">
+          {{ route.path }}
         </div>
       </header>
 
