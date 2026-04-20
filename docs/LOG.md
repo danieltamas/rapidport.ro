@@ -8,6 +8,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### `payment-confirmed` email + email copy doc
+
+**Merge commit:** `cd00697`. Single-agent.
+
+- `docs/emails-copy.md` — source-of-truth for all transactional email subjects + bodies, approved by Dani. 5 templates kept (magic-link + mapping-ready + payment-confirmed + conversion-ready + sync-complete); 2 dropped (`job-submitted`, `job-failed` — status UI surfaces both).
+- `app/server/emails/payment-confirmed.ts` — inline HTML+text renderer (same pattern as `magic-link.post.ts:renderEmail`). Fire-and-forget; cause-only error log.
+- `stripe.post.ts` — webhook fetches `billingEmail` (with leftJoin fallback to user email) and calls `sendPaymentConfirmedEmail`. Closes the email TODO marker. Skip-with-log if neither email is available (anonymous flow with no billing email captured).
+
+Three remaining templates need worker→Nuxt notification glue. Three options in the copy doc; recommended: pg-boss cron + nullable `email_<type>_sent_at` columns.
+
+**Other Dani decisions captured this turn:**
+- SmartBill invoice series = `RAPIDPORT` (Gamerina SRL). Closes SPEC Q#3. `smartbill-client` is fully unblocked.
+- Live Stripe charge authorized for the first end-to-end smoke (~2.50 RON). Webhook endpoint must be configured in Stripe dashboard or via `stripe listen`.
+
 ### Worker `bundle_output()` — unblocks `GET /api/jobs/[id]/download`
 
 **Merge commit:** `95ea945` (`job/phase2-nuxt/worker-bundle-output` → main, single-agent, --no-ff). Closes the highest-blocker gap from end of Wave 4b.

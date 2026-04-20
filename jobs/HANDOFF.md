@@ -5,8 +5,8 @@
 The full critical-path code is now on main. To actually ship a paid migration end-to-end, you need:
 1. **Live Stripe smoke** — see live-keys note below.
 2. ~~Worker output bundling~~ **DONE** (`95ea945`): `worker/src/migrator/utils/archive.py:bundle_output()` zips `output/` → `output.zip` atomically inside `consumer.run_convert`, before `_mark_rp_succeeded`. Download handler no longer 501s on the happy path.
-3. **Email templates** to resolve the TODO in the webhook (payment-confirmed) and other notifications.
-4. **SmartBill client** — blocked on SPEC Q#3 (invoice series name). The webhook intentionally leaves `payments.smartbill_invoice_id = NULL`; the future smartbill-client task sweeps those rows.
+3. ~~Email templates~~ partial (`cd00697`): payment-confirmed wired into webhook; copy for all 5 approved templates locked in `docs/emails-copy.md`. Three deferred templates (mapping-ready, conversion-ready, sync-complete) need worker→Nuxt notification glue — see "Deferred wiring" in the copy doc.
+4. **SmartBill client** — UNBLOCKED. Series = `RAPIDPORT`, entity = Gamerina SRL. `app/server/utils/smartbill.ts` + `api-webhooks-smartbill` are ready to ship whenever it makes sense in priority order.
 
 ---
 
