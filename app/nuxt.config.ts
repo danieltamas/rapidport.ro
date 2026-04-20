@@ -124,6 +124,12 @@ export default defineNuxtConfig({
       // COEP require-corp would block cross-origin resources (Google OAuth,
       // Stripe) that don't send their own CORP — disable.
       crossOriginEmbedderPolicy: false,
+      // Default nuxt-security policy is 'same-origin' which severs window.opener
+      // when an opened popup navigates cross-origin (Google) and back. That kills
+      // the admin OAuth popup's postMessage back to the opener. 'same-origin-
+      // allow-popups' keeps same-origin isolation for top-level documents but
+      // lets popups retain their opener across cross-origin nav.
+      crossOriginOpenerPolicy: 'same-origin-allow-popups',
       referrerPolicy: 'strict-origin-when-cross-origin',
       contentSecurityPolicy: {
         'base-uri': ["'self'"],

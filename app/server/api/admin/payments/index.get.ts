@@ -10,17 +10,14 @@
 // capturing the filters, IP hash, and UA — per CLAUDE.md "every passive read of
 // customer data MUST be logged". Audit failures are swallowed (best-effort) so
 // they cannot mask the actual admin response.
-import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, gt, ilike, or, sql, type SQL } from 'drizzle-orm';
-import { createError, defineEventHandler, getRequestHeader, getRequestIP, getValidatedQuery } from 'h3';
+import { createError, defineEventHandler, getValidatedQuery } from 'h3';
 import { z } from 'zod';
 import { db } from '~/server/db/client';
-import { adminAuditLog } from '~/server/db/schema/admin_audit_log';
 import { jobs } from '~/server/db/schema/jobs';
 import { payments } from '~/server/db/schema/payments';
 import { getAdminSession } from '~/server/utils/auth-admin';
-
-const USER_AGENT_MAX = 500;
+import { auditRead } from '~/server/utils/admin-audit';
 
 const statusEnum = z.enum([
   'requires_payment_method',
@@ -62,22 +59,8 @@ export default defineEventHandler(async (event) => {
   // 2. Validate query.
   const filters = await getValidatedQuery(event, querySchema.parse);
 
-  // 3. Audit — best-effort, never masks the response.
-  const ipHash = createHash('sha256')
-    .update(getRequestIP(event, { xForwardedFor: true }) ?? '')
-    .digest('hex');
-  const userAgent = (getRequestHeader(event, 'user-agent') ?? '').slice(0, USER_AGENT_MAX) || null;
-  try {
-    await db.insert(adminAuditLog).values({
-      adminEmail: session.email,
-      action: 'payments_list_viewed',
-      details: { filters },
-      ipHash,
-      userAgent,
-    });
-  } catch {
-    // Swallow — audit failures must not block admin reads.
-  }
+  // 3. Audit — fire-and-forget so the data query starts immediately.
+  auditRead(event, session, 'payments_list_viewed', { filters });
 
   // 4. Build WHERE predicates.
   const where: SQL[] = [];

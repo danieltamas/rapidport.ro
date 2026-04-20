@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// Admin login — opens Google OAuth in a popup, listens for a BroadcastChannel
-// signal from /oauth/close (the popup's final stop) + polls
-// /api/auth/admin-session as a fallback. We deliberately do NOT use
-// postMessage/window.opener — nuxt-security's COOP severs the opener the
-// moment the popup visits accounts.google.com. BroadcastChannel is
-// same-origin IPC and bypasses that entirely.
+// Admin login — opens Google OAuth in a popup, waits for postMessage from
+// /oauth/close, navigates on success. Mirrors the working lexito.ro pattern.
+// COOP set to 'same-origin-allow-popups' in nuxt.config.ts so window.opener
+// survives the popup's cross-origin nav to Google.
+//
+// Fallback: if popup is blocked, full-redirect to /api/auth/google/start
+// (the server path still supports that legacy flow when ?popup is absent).
 import { Button } from '~/components/ui/button'
 import { LogIn, Loader2 } from 'lucide-vue-next'
 
@@ -23,128 +24,63 @@ const errorMsg = computed(() => {
     case 'oauth_state_expired': return 'Sesiunea de autentificare a expirat. Încercați din nou.'
     case 'oauth_not_allowlisted': return 'Contul Google nu este autorizat pentru acces admin.'
     case 'oauth_email_not_verified': return 'Adresa de email nu este verificată la Google.'
-    case 'popup_blocked': return 'Popup-ul a fost blocat de browser. Activați popup-urile pentru această pagină sau încercați din nou.'
-    case 'popup_closed': return 'Fereastra de autentificare a fost închisă înainte de finalizare.'
-    case 'popup_timeout': return 'Autentificarea a durat prea mult. Încercați din nou.'
     default: return errorCode.value ? 'Autentificare eșuată. Încercați din nou.' : null
   }
 })
 
 const signingIn = ref(false)
-let pollTimer: ReturnType<typeof setInterval> | null = null
-let closeWatcher: ReturnType<typeof setInterval> | null = null
-let timeoutTimer: ReturnType<typeof setTimeout> | null = null
-let channel: BroadcastChannel | null = null
-let authed = false
+let popupRef: Window | null = null
+let messageHandler: ((ev: MessageEvent) => void) | null = null
 
 function cleanup() {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-  if (closeWatcher) { clearInterval(closeWatcher); closeWatcher = null }
-  if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null }
-  if (channel) { try { channel.close() } catch { /* noop */ } channel = null }
-}
-
-async function checkSession(): Promise<boolean> {
-  try {
-    // cache:'no-store' so the browser never serves a stale {authed:false}
-    // snapshot between popup ticks.
-    const res = await $fetch<{ authed: boolean; email?: string }>('/api/auth/admin-session', {
-      cache: 'no-store',
-    })
-    return res.authed === true
-  } catch {
-    return false
+  if (messageHandler) {
+    window.removeEventListener('message', messageHandler)
+    messageHandler = null
   }
+  try { popupRef?.close() } catch { /* ignore */ }
+  popupRef = null
 }
 
-async function signIn() {
+function signIn() {
   if (signingIn.value) return
-  signingIn.value = true
   errorCode.value = null
-  cleanup()
-  authed = false
 
-  const w = 500
-  const h = 620
-  const left = Math.max(0, window.screenX + Math.round((window.outerWidth - w) / 2))
-  const top = Math.max(0, window.screenY + Math.round((window.outerHeight - h) / 2))
+  // Open synchronously in response to the click — browsers block popups
+  // opened after async code.
+  const width = 500
+  const height = 650
+  const left = Math.max(0, Math.round(window.screen.width / 2 - width / 2))
+  const top = Math.max(0, Math.round(window.screen.height / 2 - height / 2))
+  const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
 
-  const popupRef = window.open(
-    '/api/auth/google/start?popup=1',
-    'rapidport-admin-oauth',
-    `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`,
-  )
+  const popup = window.open('/api/auth/google/start?popup=1', 'rapidport-admin-oauth', features)
 
-  if (!popupRef) {
-    signingIn.value = false
-    errorCode.value = 'popup_blocked'
+  if (!popup) {
+    // Popup blocked — fall back to a full-page redirect (no popup flag so
+    // callback 303s back to /admin on success).
+    window.location.href = '/api/auth/google/start'
     return
   }
-  const popup: Window = popupRef
 
-  async function finishSuccess() {
-    if (authed) return
-    authed = true
+  popupRef = popup
+  popup.focus()
+  signingIn.value = true
+
+  messageHandler = async (ev: MessageEvent) => {
+    // Only accept messages from our own origin.
+    if (ev.origin !== window.location.origin) return
+    const data = ev.data as { source?: string; type?: string; error?: string | null } | null
+    if (!data || data.source !== 'rapidport-admin-oauth') return
+
     cleanup()
-    try { popup.close() } catch { /* already closed */ }
-    await navigateTo('/admin')
-  }
-
-  function finishError(code: string) {
-    if (authed) return
-    cleanup()
-    try { popup.close() } catch { /* already closed */ }
-    errorCode.value = code
-    signingIn.value = false
-  }
-
-  // Primary signal: BroadcastChannel from /oauth/close. Fires as soon as the
-  // popup's final page mounts (before window.close()). Same-origin IPC — not
-  // affected by COOP, not affected by CSP.
-  try {
-    channel = new BroadcastChannel('rapidport-admin-oauth')
-    channel.onmessage = async (ev) => {
-      const data = ev.data as { source?: string; status?: 'ok' | 'error'; code?: string | null } | null
-      if (!data || data.source !== 'rapidport-admin-oauth') return
-      if (data.status === 'ok') {
-        // Session cookie is already committed; navigate.
-        await finishSuccess()
-      } else {
-        finishError(data.code ?? 'unknown')
-      }
+    if (data.type === 'success') {
+      await navigateTo('/admin')
+    } else {
+      errorCode.value = data.error ?? 'unknown'
+      signingIn.value = false
     }
-  } catch {
-    // Browser without BroadcastChannel — the poll + close-watcher below
-    // still recovers on success.
   }
-
-  // Fallback: session polling (every 500ms). Recovers in any BroadcastChannel
-  // edge case (old browser, 3rd-party cookie blocker nuking the channel, etc.).
-  pollTimer = setInterval(async () => {
-    if (await checkSession()) await finishSuccess()
-  }, 500)
-
-  // Popup-close watcher: if the popup is gone AND we haven't flipped authed,
-  // do a few retry session checks (grace period for cookie/poll race) before
-  // declaring popup_closed.
-  closeWatcher = setInterval(async () => {
-    if (!popup.closed || authed) return
-    // Stop watching so we don't re-enter.
-    if (closeWatcher) { clearInterval(closeWatcher); closeWatcher = null }
-    for (let attempt = 0; attempt < 5 && !authed; attempt++) {
-      if (await checkSession()) {
-        await finishSuccess()
-        return
-      }
-      await new Promise((r) => setTimeout(r, 400))
-    }
-    if (!authed) finishError('popup_closed')
-  }, 400)
-
-  // Hard timeout — 3 minutes — so we don't poll forever if the user walks away.
-  timeoutTimer = setTimeout(async () => {
-    if (!authed) finishError('popup_timeout')
-  }, 3 * 60 * 1000)
+  window.addEventListener('message', messageHandler)
 }
 
 onBeforeUnmount(cleanup)

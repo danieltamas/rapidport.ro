@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Popup's final stop after the OAuth callback. Signals the parent via
-// BroadcastChannel (same-origin IPC — not blocked by COOP, not blocked by
-// CSP since this is a real Nuxt page) and closes itself.
+// Popup's final stop after the OAuth callback. postMessage's the opener with
+// status + optional error code, then closes. COOP is 'same-origin-allow-popups'
+// globally (nuxt.config.ts), so window.opener remains accessible here even
+// after the popup visited accounts.google.com mid-flow.
 //
 // Query: ?status=ok|error[&code=...]
 useHead({
@@ -15,21 +16,18 @@ const status = (route.query.status as string | undefined) === 'ok' ? 'ok' : 'err
 const code = (route.query.code as string | undefined) ?? null
 
 onMounted(() => {
-  // Broadcast first, then close. Named channel shared with admin/login.vue.
-  try {
-    const ch = new BroadcastChannel('rapidport-admin-oauth')
-    ch.postMessage({ source: 'rapidport-admin-oauth', status, code })
-    ch.close()
-  } catch {
-    // BroadcastChannel not supported (very old browser) — parent's session
-    // poll will still eventually catch up on success. Error cases in unsupported
-    // browsers just surface as 'popup_closed'.
+  const payload = {
+    source: 'rapidport-admin-oauth',
+    type: status === 'ok' ? 'success' : 'error',
+    error: status === 'error' ? code : null,
   }
-  // Small delay so the browser has committed the session cookie before the
-  // parent's follow-up fetch runs (subtle timing on some engines).
-  setTimeout(() => {
-    try { window.close() } catch { /* refused by browser */ }
-  }, 120)
+  try {
+    if (window.opener) {
+      window.opener.postMessage(payload, window.location.origin)
+    }
+  } catch { /* ignore */ }
+  // Close after a short delay so the message is delivered before teardown.
+  setTimeout(() => { try { window.close() } catch { /* noop */ } }, 100)
 })
 </script>
 

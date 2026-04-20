@@ -35,13 +35,13 @@ type SessionsResponse = {
   rows: SessionRow[]
 }
 
-const { data, pending, refresh, error } = await useAsyncData<SessionsResponse>(
+const { data, pending, refresh, error } = useAsyncData<SessionsResponse>(
   'admin-sessions',
   () =>
     $fetch<SessionsResponse>('/api/admin/sessions', {
       headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
     }),
-  { default: () => ({ rows: [] }) },
+  { lazy: true, default: () => ({ rows: [] }) },
 )
 
 // --- Revoke flow ---------------------------------------------------------------

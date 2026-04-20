@@ -64,7 +64,7 @@ const query = computed(() => {
   return q
 })
 
-const { data, pending, refresh, error } = await useAsyncData<ProfilesResponse>(
+const { data, pending, refresh, error } = useAsyncData<ProfilesResponse>(
   'admin-profiles',
   () =>
     $fetch<ProfilesResponse>('/api/admin/profiles', {

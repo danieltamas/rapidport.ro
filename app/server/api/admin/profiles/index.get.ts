@@ -2,7 +2,6 @@
 // Returns metadata only — the `mappings` jsonb is intentionally NOT in the
 // response (it can be large; admin can fetch a single profile via a separate
 // endpoint when one ships).
-import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, type SQL } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
@@ -16,6 +15,7 @@ import { z } from 'zod';
 import { db } from '../../../db/client';
 import { adminAuditLog, mappingProfiles } from '../../../db/schema';
 import { getAdminSession } from '../../../utils/auth-admin';
+import { auditRead } from '../../../utils/admin-audit';
 
 const QuerySchema = z.object({
   isPublic: z.enum(['true', 'false']).optional(),
@@ -37,22 +37,7 @@ export default defineEventHandler(async (event) => {
 
   const q = await getValidatedQuery(event, QuerySchema.parse);
 
-  // Audit — best-effort (read).
-  try {
-    const ipHash = createHash('sha256')
-      .update(getRequestIP(event, { xForwardedFor: true }) ?? '')
-      .digest('hex');
-    const ua = getHeader(event, 'user-agent')?.slice(0, 500);
-    await db.insert(adminAuditLog).values({
-      adminEmail: admin.email,
-      action: 'profiles_list_viewed',
-      details: q,
-      ipHash,
-      userAgent: ua,
-    });
-  } catch {
-    console.warn('admin_audit_log_failed', { action: 'profiles_list_viewed' });
-  }
+  auditRead(event, admin, 'profiles_list_viewed', q);
 
   const conditions: SQL[] = [];
   if (q.isPublic === 'true') conditions.push(eq(mappingProfiles.isPublic, true));

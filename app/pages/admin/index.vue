@@ -19,13 +19,13 @@ type Stats = {
   usersTotal: number
 }
 
-const { data: stats, pending, refresh, error } = await useAsyncData(
+const { data: stats, pending, refresh, error } = useAsyncData(
   'admin-stats',
   () =>
     $fetch<Stats>('/api/admin/stats', {
       headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
     }),
-  { default: () => null },
+  { lazy: true, default: () => null },
 )
 
 const cards = computed(() => {
