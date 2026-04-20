@@ -239,7 +239,7 @@ const deleteDisabled = computed(() => isDeleted.value)
 </script>
 
 <template>
-  <div class="px-6 py-6 max-w-[1400px] mx-auto">
+  <div class="px-4 md:px-6 py-6 max-w-[1400px] mx-auto">
     <!-- Back link + header -->
     <div class="mb-4">
       <NuxtLink
