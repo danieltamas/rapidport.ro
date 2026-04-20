@@ -8,6 +8,28 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### Email notification sweep — `mapping-ready` + `conversion-ready`
+
+**Merge:** `8c4c891`. Closes the worker→Nuxt notification gap deferred from email-templates. Uses the scheduler plugin (just shipped).
+
+- Migration `0005`: `jobs.email_mapping_ready_sent_at` + `jobs.email_conversion_ready_sent_at` (both nullable timestamptz). Fire-once markers.
+- `emails/{mapping-ready,conversion-ready}.ts` — inline HTML+text renderers per `docs/emails-copy.md` §1 + §3.
+- `schedule-tasks/email-notification-sweep.ts` — two batch-50 sweeps (mapping-ready fires on `status='mapped' OR progressStage='reviewing'`; conversion-ready on `status='succeeded'`). Recipient = `billingEmail` with leftJoin fallback to `user.email`. Scheduled every 2 min.
+- `plugins/schedule.ts` — registers `email.notification-sweep`.
+
+**sync-complete NOT wired** — requires an `is_resync` flag on `ConvertPayload` the worker doesn't set yet. Flagged in `docs/emails-copy.md` "Open question".
+
+### Hotfix: dev-safe SmartBill env defaults
+
+**Commit:** `1fdeb39`. After the SmartBill merge (`2958488`), the env validator blew up on every request because Dani's local `.env` didn't yet have `SMARTBILL_USERNAME`/`SMARTBILL_CIF`. Root cause: I made them `z.string().min(1)` (hard-required) instead of giving dev-safe placeholders like `ADMIN_EMAILS` already has.
+
+Fix:
+- `env.ts` — SmartBill vars now have dev-safe defaults (`dev-noop@example.test`, `dev-noop`, `RO00000000`).
+- `smartbill.ts` — new `isSmartBillConfigured()` guard detects the placeholders.
+- `smartbill-invoice-sweep.ts` — short-circuits `{skipped: true}` when not configured so the sweep doesn't rack up failed SmartBill API calls and escalate to `admin_audit_log` every 5 min in dev.
+
+**Rule saved to auto-memory:** every new required env var for an external service must get a dev-safe placeholder default + an `isXxxConfigured()` guard in its downstream util. Don't repeat.
+
 ### `smartbill-client` + `gdpr-cleanup-cron` — SmartBill REST client + scheduled-jobs plugin
 
 **Merge:** `2958488` (branch `job/phase2-nuxt/smartbill-and-cleanup` → main, --no-ff). Single-agent; both plans approved with defaults.

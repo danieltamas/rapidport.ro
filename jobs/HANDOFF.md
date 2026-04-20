@@ -7,10 +7,51 @@ The full critical-path code is now on main. To actually ship a paid migration en
 5. **api-admin Waves A + B DONE**: 23 admin endpoints + migration 0004 (`users.blocked_at`/`blocked_reason`) + `purgeUserData` helper. Settings + errors stubs deferred (no env mutability surface today; no Sentry yet).
 
 2. ~~Worker output bundling~~ **DONE** (`95ea945`): `worker/src/migrator/utils/archive.py:bundle_output()` zips `output/` → `output.zip` atomically inside `consumer.run_convert`, before `_mark_rp_succeeded`. Download handler no longer 501s on the happy path.
-3. ~~Email templates~~ partial (`cd00697`): payment-confirmed wired into webhook; copy for all 5 approved templates locked in `docs/emails-copy.md`. Three deferred templates (mapping-ready, conversion-ready, sync-complete) need worker→Nuxt notification glue — see "Deferred wiring" in the copy doc.
+3. **Email templates** — 4 of 5 approved templates wired. payment-confirmed (`cd00697`) from webhook; mapping-ready + conversion-ready (`8c4c891`) from a scheduled sweep every 2 min, tracked via fire-once timestamp columns added in migration 0005. sync-complete is the one remaining — needs an `is_resync` flag on `ConvertPayload` that the worker doesn't yet set. Deferred per plan.
 4. **SmartBill client** — **DONE** (`2958488`): `utils/smartbill.ts` + `smartbill-invoice-sweep` scheduled every 5 min. Dani's env needs `SMARTBILL_USERNAME` / `SMARTBILL_API_KEY` / `SMARTBILL_CIF` set before the sweep will issue live invoices.
 
 6. **gdpr-cleanup-cron** — **DONE** (`2958488`): `plugins/schedule.ts` + 4 cleanup tasks (jobs-files 6h, oauth-state 1h, rate-limits 1h, orphan-files daily). Opt-out via `SCHEDULER_ENABLED=false`.
+
+---
+
+## End-of-session state (2026-04-20, late)
+
+**Green path shipped end-to-end.** A user can:
+1. Land on /, click through to /upload, get an anonymous job.
+2. Upload archive → discover → AI mapping → review → pay → Stripe webhook → worker convert → bundle → SSE-driven /status → download.
+3. Get 4 of 5 transactional emails at the right moments (magic-link on login, payment-confirmed on webhook, mapping-ready when review is due, conversion-ready when bundle's out).
+
+**Admin has a full dashboard** at /admin: overview, jobs list + detail + 6 action dialogs, payments, users list + detail + 4 action dialogs, AI usage, profiles + promote/hide, audit log, sessions + revoke (self-lockout guarded).
+
+**Scheduler running** (opt-out via `SCHEDULER_ENABLED=false` for a secondary dev shell): 6 jobs — 4 cleanup + SmartBill invoice sweep + email notification sweep.
+
+**Environment state:**
+- `.env` needs SmartBill vars set for real invoicing (`SMARTBILL_USERNAME`, `SMARTBILL_API_KEY`, `SMARTBILL_CIF=RO<gamerina-cif>`). Without them, the sweep no-ops quietly.
+- Stripe LIVE keys in `.env` — first end-to-end pay flow still needs Dani's go (swap to test keys + `stripe listen`, or deliberate small-amount live smoke).
+- 168+ commits ahead of origin.
+
+## Open Phase 2 items (each a separate session's worth)
+
+1. **i18n** — `@nuxtjs/i18n` module, `app/locales/{ro,en}.json`, `?lang=en` fallback. Existing RO hard-coded strings in pages will need migration; can ship infra first and migrate opportunistically.
+2. **observability** — `@sentry/nuxt` + `sentry-sdk` for worker; beforeSend PII filter; source maps in CI. Needs Dani's Sentry DSN.
+3. **infra** — `infra/docker-compose.yml` + `docker-compose.prod.yml` + root `Dockerfile` + `infra/Caddyfile` + `infra/hetzner-setup.md`.
+4. **ci-tests** — 4 GitHub Actions workflows (typecheck/lint, tests, security, gitleaks).
+5. **gate** — Phase 2 review against SPEC §2.8 checklist.
+6. **sync-complete email** — depends on a worker-side `is_resync` flag (ConvertPayload + Pydantic mirror update + worker branching). Small.
+7. **Worker-side email triggers for specific progressStage jumps** — currently the sweep triggers on DB state which may lag. Good enough for v1.
+8. **`/job/[id]/pay.vue` — billingInfo wiring.** Form exists with hardcoded dummy values; still needs to capture real PJ/PF data and POST it into `payments.billingInfo` so SmartBill sweep has a real client block. Currently sweep falls back to PF with `billingEmail` only — works but gives thin invoices.
+
+## Rules reinforced this session (saved to auto-memory)
+
+- New required env vars for external services need dev-safe placeholders + `isXxxConfigured()` guards. Don't hard-require without a fallback.
+- Worker prompts with "MANDATORY, not optional" salvage clause recover cleanly from Bash-denied (5/5 pages-admin workers shipped despite hitting it).
+- Orchestrator's CWD can drift into a worker's worktree mid-flow. `cd /Users/danime/Sites/rapidport.ro/app` + `git status` before assuming you're on main.
+
+---
+
+## Previous handoff (preserved below for context)
+
+
 
 ---
 
