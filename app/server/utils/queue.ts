@@ -16,7 +16,7 @@ type QueueName = (typeof QUEUE_NAMES)[number];
 
 let bossPromise: Promise<PgBoss> | null = null;
 
-async function getBoss(): Promise<PgBoss> {
+export async function getBoss(): Promise<PgBoss> {
   if (bossPromise) return bossPromise;
   bossPromise = (async () => {
     const boss = new PgBoss({ connectionString: env.DATABASE_URL });
