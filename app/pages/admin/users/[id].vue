@@ -57,7 +57,7 @@ type DetailResponse = {
 const route = useRoute()
 const userId = computed(() => String(route.params.id))
 
-const { data, pending, error, refresh } = await useAsyncData<DetailResponse>(
+const { data, pending, error, refresh } = useAsyncData<DetailResponse>(
   () => `admin-user-${userId.value}`,
   () =>
     $fetch<DetailResponse>(`/api/admin/users/${userId.value}`, {

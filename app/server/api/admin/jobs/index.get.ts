@@ -8,22 +8,13 @@
 //
 // Response NEVER includes `anonymousAccessToken` — admin UI doesn't need it
 // for a listing view and leaking it would hand out unauthenticated job access.
-import { createHash } from 'node:crypto';
-import {
-  createError,
-  defineEventHandler,
-  getRequestHeader,
-  getRequestIP,
-  getValidatedQuery,
-} from 'h3';
+import { createError, defineEventHandler, getValidatedQuery } from 'h3';
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '~/server/db/client';
 import { jobs } from '~/server/db/schema/jobs';
-import { adminAuditLog } from '~/server/db/schema/admin_audit_log';
 import { getAdminSession } from '~/server/utils/auth-admin';
-
-const USER_AGENT_MAX = 500;
+import { auditRead } from '~/server/utils/admin-audit';
 
 const QuerySchema = z.object({
   status: z.enum(['created', 'paid', 'succeeded', 'failed', 'expired']).optional(),
@@ -49,31 +40,16 @@ export default defineEventHandler(async (event) => {
 
   const query = await getValidatedQuery(event, QuerySchema.parse);
 
-  // Best-effort audit — do not fail the request if the insert fails.
-  const ipHash = createHash('sha256')
-    .update(getRequestIP(event, { xForwardedFor: true }) ?? '')
-    .digest('hex');
-  const userAgent = (getRequestHeader(event, 'user-agent') ?? '').slice(0, USER_AGENT_MAX) || null;
-  try {
-    await db.insert(adminAuditLog).values({
-      adminEmail: session.email,
-      action: 'jobs_list_viewed',
-      details: {
-        filters: {
-          status: query.status ?? null,
-          q: query.q ?? null,
-          page: query.page,
-          pageSize: query.pageSize,
-          sort: query.sort,
-          order: query.order,
-        },
-      },
-      ipHash,
-      userAgent,
-    });
-  } catch {
-    // Swallow — audit failure must not break admin UX.
-  }
+  auditRead(event, session, 'jobs_list_viewed', {
+    filters: {
+      status: query.status ?? null,
+      q: query.q ?? null,
+      page: query.page,
+      pageSize: query.pageSize,
+      sort: query.sort,
+      order: query.order,
+    },
+  });
 
   // Build WHERE clauses.
   const conditions: SQL[] = [];

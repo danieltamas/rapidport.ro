@@ -9,7 +9,6 @@
 // Admin session is enforced by middleware/admin-auth.ts; we still fetch defensively.
 // Audit row is best-effort (read-only endpoint, Wave A pattern). No PII: mapping_cache
 // and ai_usage contain only technical field names and token counts — no user identifiers.
-import { createHash } from 'node:crypto';
 import { asc, desc, lt, sql } from 'drizzle-orm';
 import { createError, defineEventHandler, getHeader, getRequestIP } from 'h3';
 import { db } from '~/server/db/client';
@@ -17,14 +16,10 @@ import { adminAuditLog } from '~/server/db/schema/admin_audit_log';
 import { aiUsage } from '~/server/db/schema/ai_usage';
 import { mappingCache } from '~/server/db/schema/mapping_cache';
 import { getAdminSession } from '~/server/utils/auth-admin';
+import { auditRead } from '~/server/utils/admin-audit';
 
-const USER_AGENT_MAX = 500;
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
 const LOW_CONFIDENCE_LIMIT = 50;
-
-function sha256Hex(v: string): string {
-  return createHash('sha256').update(v).digest('hex');
-}
 
 export default defineEventHandler(async (event) => {
   const admin = await getAdminSession(event);
@@ -32,19 +27,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401 });
   }
 
-  // Audit — best effort. Never fail the request because the audit insert hiccupped.
-  try {
-    const ipHash = sha256Hex(getRequestIP(event, { xForwardedFor: true }) ?? '');
-    const ua = getHeader(event, 'user-agent')?.slice(0, USER_AGENT_MAX);
-    await db.insert(adminAuditLog).values({
-      adminEmail: admin.email,
-      action: 'ai_dashboard_viewed',
-      ipHash,
-      userAgent: ua,
-    });
-  } catch {
-    console.warn('admin_audit_log_failed', { action: 'ai_dashboard_viewed' });
-  }
+  auditRead(event, admin, 'ai_dashboard_viewed');
 
   const since30d = sql`now() - interval '30 days'`;
 

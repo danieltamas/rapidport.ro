@@ -1,7 +1,6 @@
 // GET /api/admin/audit — paginated read of admin_audit_log.
 // Self-audited (admin viewing the audit log writes a row of its own — meta but
 // compliant with the "every admin action is audited" rule).
-import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, gt, lt, type SQL } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
@@ -15,6 +14,7 @@ import { z } from 'zod';
 import { db } from '../../../db/client';
 import { adminAuditLog } from '../../../db/schema';
 import { getAdminSession } from '../../../utils/auth-admin';
+import { auditRead } from '../../../utils/admin-audit';
 
 const QuerySchema = z.object({
   adminEmail: z.string().email().optional(),
@@ -33,22 +33,7 @@ export default defineEventHandler(async (event) => {
 
   const q = await getValidatedQuery(event, QuerySchema.parse);
 
-  // Audit (best-effort).
-  try {
-    const ipHash = createHash('sha256')
-      .update(getRequestIP(event, { xForwardedFor: true }) ?? '')
-      .digest('hex');
-    const ua = getHeader(event, 'user-agent')?.slice(0, 500);
-    await db.insert(adminAuditLog).values({
-      adminEmail: admin.email,
-      action: 'audit_log_viewed',
-      details: q,
-      ipHash,
-      userAgent: ua,
-    });
-  } catch {
-    console.warn('admin_audit_log_failed', { action: 'audit_log_viewed' });
-  }
+  auditRead(event, admin, 'audit_log_viewed', q);
 
   const conditions: SQL[] = [];
   if (q.adminEmail) conditions.push(eq(adminAuditLog.adminEmail, q.adminEmail));

@@ -6,22 +6,13 @@
 // is safe in isolation + we have the admin email for the audit row.
 //
 // Read endpoint → audit is best-effort (swallow failures, never block response).
-import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, ilike, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
-import {
-  createError,
-  defineEventHandler,
-  getRequestHeader,
-  getRequestIP,
-  getValidatedQuery,
-} from 'h3';
+import { createError, defineEventHandler, getValidatedQuery } from 'h3';
 import { z } from 'zod';
 import { db } from '~/server/db/client';
-import { adminAuditLog } from '~/server/db/schema/admin_audit_log';
 import { users } from '~/server/db/schema/users';
 import { getAdminSession } from '~/server/utils/auth-admin';
-
-const USER_AGENT_MAX = 500;
+import { auditRead } from '~/server/utils/admin-audit';
 
 const querySchema = z.object({
   q: z.string().trim().min(1).max(200).optional(),
@@ -47,23 +38,7 @@ export default defineEventHandler(async (event) => {
 
   const filters = await getValidatedQuery(event, querySchema.parse);
 
-  const ipHash = createHash('sha256')
-    .update(getRequestIP(event, { xForwardedFor: true }) ?? '')
-    .digest('hex');
-  const userAgent = (getRequestHeader(event, 'user-agent') ?? '').slice(0, USER_AGENT_MAX) || null;
-
-  // Best-effort audit (read endpoint).
-  try {
-    await db.insert(adminAuditLog).values({
-      adminEmail: session.email,
-      action: 'users_list_viewed',
-      details: { filters },
-      ipHash,
-      userAgent,
-    });
-  } catch {
-    // Swallow — audit failure must not break admin UX.
-  }
+  auditRead(event, session, 'users_list_viewed', { filters });
 
   const where: SQL[] = [];
 

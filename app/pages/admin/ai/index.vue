@@ -43,13 +43,13 @@ type AiResponse = {
 
 const reqHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
 
-const { data, pending, refresh, error } = await useAsyncData(
+const { data, pending, refresh, error } = useAsyncData(
   'admin-ai',
   () =>
     $fetch<AiResponse>('/api/admin/ai', {
       headers: reqHeaders,
     }),
-  { default: () => null },
+  { lazy: true, default: () => null },
 )
 
 const trend = computed<TrendDay[]>(() => data.value?.trend30d ?? [])

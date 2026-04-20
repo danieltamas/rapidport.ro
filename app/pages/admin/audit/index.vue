@@ -77,15 +77,14 @@ const queryPayload = computed(() => {
   return payload
 })
 
-const { data, pending, refresh, error } = await useAsyncData<AuditResponse>(
+const { data, pending, refresh, error } = useAsyncData<AuditResponse>(
   'admin-audit',
   () =>
     $fetch<AuditResponse>('/api/admin/audit', {
       query: queryPayload.value,
       headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
     }),
-  {
-    default: () => ({ rows: [], page: 1, pageSize: 25, total: 0 }),
+  { lazy: true, default: () => ({ rows: [], page: 1, pageSize: 25, total: 0 }),
     watch: [queryPayload],
   },
 )

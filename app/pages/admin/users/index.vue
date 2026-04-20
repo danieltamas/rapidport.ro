@@ -55,7 +55,7 @@ const queryParams = computed(() => {
   return p
 })
 
-const { data, pending, error, refresh } = await useAsyncData<UsersResponse>(
+const { data, pending, error, refresh } = useAsyncData<UsersResponse>(
   'admin-users',
   () =>
     $fetch<UsersResponse>('/api/admin/users', {

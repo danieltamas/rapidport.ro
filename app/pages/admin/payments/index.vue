@@ -74,7 +74,7 @@ const queryParams = computed(() => {
   return p
 })
 
-const { data, pending, error, refresh } = await useAsyncData<PaymentsResponse>(
+const { data, pending, error, refresh } = useAsyncData<PaymentsResponse>(
   'admin-payments',
   () =>
     $fetch<PaymentsResponse>('/api/admin/payments', {

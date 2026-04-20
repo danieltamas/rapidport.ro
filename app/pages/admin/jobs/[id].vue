@@ -66,13 +66,13 @@ type DetailResponse = { job: Job; payments: Payment[]; audit: AuditRow[] }
 const route = useRoute()
 const jobId = computed(() => String(route.params.id))
 
-const { data, pending, error, refresh } = await useAsyncData<DetailResponse>(
+const { data, pending, error, refresh } = useAsyncData<DetailResponse>(
   () => `admin-job-${jobId.value}`,
   () =>
     $fetch<DetailResponse>(`/api/admin/jobs/${jobId.value}`, {
       headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
     }),
-  { default: () => null as unknown as DetailResponse, watch: [jobId] },
+  { lazy: true, default: () => null as unknown as DetailResponse, watch: [jobId] },
 )
 
 // --- CSRF helper (mirrors admin layout) ---

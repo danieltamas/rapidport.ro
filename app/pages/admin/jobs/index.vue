@@ -85,15 +85,14 @@ const apiQuery = computed(() => {
   return params
 })
 
-const { data, pending, error, refresh } = await useAsyncData<JobsResponse>(
+const { data, pending, error, refresh } = useAsyncData<JobsResponse>(
   'admin-jobs-list',
   () =>
     $fetch<JobsResponse>('/api/admin/jobs', {
       query: apiQuery.value,
       headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
     }),
-  {
-    default: () => ({ rows: [], page: 1, pageSize: 50, total: 0 }),
+  { lazy: true, default: () => ({ rows: [], page: 1, pageSize: 50, total: 0 }),
     watch: [apiQuery],
   },
 )
