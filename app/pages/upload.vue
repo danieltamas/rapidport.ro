@@ -19,6 +19,8 @@ const source = ref<'winmentor' | 'saga' | 'auto'>('auto')
 
 const file = ref<File | null>(null)
 const dragover = ref(false)
+const submitting = ref(false)
+const errorMsg = ref<string | null>(null)
 
 function onDrop(e: DragEvent) {
   e.preventDefault()
@@ -37,6 +39,66 @@ function fmtSize(n: number) {
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`
   return `${(n / 1024 ** 3).toFixed(2)} GB`
+}
+
+function readCsrf(): string {
+  if (import.meta.server) return ''
+  const m = document.cookie.match(/(?:^|;\s*)rp_csrf=([^;]+)/)
+  return m && m[1] ? decodeURIComponent(m[1]) : ''
+}
+
+// The /api/jobs endpoint requires explicit sourceSoftware + targetSoftware
+// (different values). When the user picks "auto" we infer the direction from
+// the archive extension: .tgz/.tar.gz is the WinMentor native backup format,
+// anything else (.zip / .7z / .rar) we treat as SAGA. Worker discovery will
+// still validate the actual archive structure and surface a mismatch.
+function resolveDirection(f: File): { sourceSoftware: 'winmentor' | 'saga'; targetSoftware: 'winmentor' | 'saga' } {
+  if (source.value === 'winmentor') return { sourceSoftware: 'winmentor', targetSoftware: 'saga' }
+  if (source.value === 'saga') return { sourceSoftware: 'saga', targetSoftware: 'winmentor' }
+  const name = f.name.toLowerCase()
+  const looksWinMentor = name.endsWith('.tgz') || name.endsWith('.tar.gz')
+  return looksWinMentor
+    ? { sourceSoftware: 'winmentor', targetSoftware: 'saga' }
+    : { sourceSoftware: 'saga', targetSoftware: 'winmentor' }
+}
+
+async function submit() {
+  if (!file.value || submitting.value) return
+  submitting.value = true
+  errorMsg.value = null
+  try {
+    const { sourceSoftware, targetSoftware } = resolveDirection(file.value)
+
+    const created = await $fetch<{ id: string }>('/api/jobs', {
+      method: 'POST',
+      headers: { 'x-csrf-token': readCsrf() },
+      body: { sourceSoftware, targetSoftware },
+    })
+
+    const form = new FormData()
+    form.append('file', file.value)
+    await $fetch(`/api/jobs/${created.id}/upload`, {
+      method: 'PUT',
+      headers: { 'x-csrf-token': readCsrf() },
+      body: form,
+    })
+
+    await navigateTo(`/job/${created.id}/discovery`)
+  } catch (err: unknown) {
+    const status = (err as { statusCode?: number })?.statusCode
+    const code = (err as { data?: { error?: string } })?.data?.error
+    if (status === 413 || code === 'payload_too_large') {
+      errorMsg.value = 'Arhiva depășește 500 MB. Exportați o bază mai mică sau ne scrieți pe email.'
+    } else if (status === 415 || code === 'unsupported_archive_type') {
+      errorMsg.value = 'Format nerecunoscut. Acceptăm .tgz, .zip, .7z, .rar.'
+    } else if (status === 429) {
+      errorMsg.value = 'Prea multe încărcări. Încercați peste o oră.'
+    } else {
+      errorMsg.value = 'Încărcarea a eșuat. Verificați conexiunea și încercați din nou.'
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -127,12 +189,14 @@ function fmtSize(n: number) {
           <div class="mt-8 flex flex-wrap gap-3">
             <Button
               class="rounded-full h-12 px-7 text-base font-medium"
-              :disabled="!file"
+              :disabled="!file || submitting"
+              @click="submit"
             >
-              Continuă spre validare
+              <span v-if="!submitting">Continuă spre validare</span>
+              <span v-else>Se încarcă…</span>
             </Button>
             <Button
-              v-if="file"
+              v-if="file && !submitting"
               variant="ghost"
               class="rounded-full h-12 px-5 text-base font-medium"
               @click="file = null"
@@ -140,6 +204,10 @@ function fmtSize(n: number) {
               Schimbă arhiva
             </Button>
           </div>
+
+          <p v-if="errorMsg" class="mt-4 text-sm text-destructive" role="alert">
+            {{ errorMsg }}
+          </p>
 
           <div class="mt-10 grid sm:grid-cols-3 gap-4">
             <Card class="border-border">
