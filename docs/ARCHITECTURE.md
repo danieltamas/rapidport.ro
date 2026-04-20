@@ -94,7 +94,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   ├── db/
 │   │   │   ├── schema.ts              # re-exports all sibling schema files
 │   │   │   ├── schema/
-│   │   │   │   ├── jobs.ts            # jobs — Phase 1 progress_* + Phase 2 user/anon/upload/discovery/mapping/billing; uploadDiskFilename added by 0003
+│   │   │   │   ├── jobs.ts            # jobs — Phase 1 progress_* + Phase 2 user/anon/upload/discovery/mapping/billing; uploadDiskFilename (0003), email-sent markers (0005), last_run_was_resync (0007)
 │   │   │   │   ├── mapping_cache.ts   # cached Haiku field mappings, unique (source, table, field)
 │   │   │   │   ├── ai_usage.ts        # per-call Anthropic token + cost tracking
 │   │   │   │   ├── users.ts           # users — email (unique) + email_hash (indexed) + deleted_at soft-delete

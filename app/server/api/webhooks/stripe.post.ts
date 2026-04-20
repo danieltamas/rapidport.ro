@@ -180,6 +180,9 @@ export default defineEventHandler(async (event) => {
     input_path: `${DATA_ROOT}/${jobId.data}/upload/${job.uploadDiskFilename}`,
     output_dir: `${DATA_ROOT}/${jobId.data}/output`,
     mapping_profile: null,
+    // Explicit `false` so the contract matches the resync handler. Pydantic
+    // defaults to False but being explicit here documents intent.
+    is_resync: false,
   };
   try {
     await publishConvert(payload);

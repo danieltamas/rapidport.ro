@@ -102,6 +102,11 @@ class ConvertPayload(BaseModel):
     a1_articles: bool = False
     a1_warehouses: bool = False
     mapping_profile: str | None = None
+    # True for delta-syncs (POST /api/jobs/[id]/resync); omitted/False for the
+    # initial convert queued by the Stripe webhook. Stamped to
+    # jobs.last_run_was_resync on success so a future sync-complete email sweep
+    # can branch on it.
+    is_resync: bool = False
 
 
 class DiscoverPayload(BaseModel):
@@ -176,13 +181,20 @@ async def _mark_rp_running(pool: asyncpg.Pool, job_id: UUID) -> None:  # type: i
         log.warning("mark_running_failed", job_id=str(job_id))
 
 
-async def _mark_rp_succeeded(pool: asyncpg.Pool, job_id: UUID) -> None:  # type: ignore[type-arg]
+async def _mark_rp_succeeded(
+    pool: asyncpg.Pool,  # type: ignore[type-arg]
+    job_id: UUID,
+    is_resync: bool,
+) -> None:
+    """Flip status=succeeded and stamp last_run_was_resync so the email sweep
+    can tell an initial-convert finish apart from a delta-sync finish."""
     try:
         async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE jobs SET status='succeeded', progress_pct=100,"
-                " progress_stage='done' WHERE id=$1",
+                " progress_stage='done', last_run_was_resync=$2 WHERE id=$1",
                 job_id,
+                is_resync,
             )
     except Exception:
         log.warning("mark_succeeded_failed", job_id=str(job_id))
@@ -385,7 +397,7 @@ async def run_convert(
             # 'succeeded' job that returns 501 on download.
             raise RuntimeError(f"bundle_failed: {exc}") from exc
 
-        await _mark_rp_succeeded(pool, job_id)
+        await _mark_rp_succeeded(pool, job_id, is_resync=payload.is_resync)
         await _progress(pool, job_id, "done", 100)
         log.info(
             "job_completed",

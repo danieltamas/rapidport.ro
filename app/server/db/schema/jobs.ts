@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, bigint, jsonb, timestamp, index, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, bigint, boolean, jsonb, timestamp, index, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { mappingProfiles } from './mapping_profiles';
 
@@ -44,6 +44,12 @@ export const jobs = pgTable(
     // re-send, matches the /job/[id]/status live UI.
     emailMappingReadySentAt: timestamp('email_mapping_ready_sent_at', { withTimezone: true }),
     emailConversionReadySentAt: timestamp('email_conversion_ready_sent_at', { withTimezone: true }),
+    // Stamped by the Python worker when it finishes a convert job. Reflects
+    // whether that last run was a delta-sync (resync) or an initial conversion
+    // — reads the `is_resync` flag on the incoming ConvertPayload. Consumed by
+    // a future sync-complete email sweep; the initial-convert vs. resync
+    // distinction has no other source of truth at completion time (migration 0007).
+    lastRunWasResync: boolean('last_run_was_resync').default(false).notNull(),
   },
   (t) => ({
     userIdIdx: index().on(t.userId),

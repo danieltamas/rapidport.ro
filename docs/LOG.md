@@ -8,6 +8,21 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### feat(queue): is_resync flag on ConvertPayload + worker stamps last_run_was_resync
+
+HANDOFF Priority 2.5 plumbing. Adds the `is_resync` boolean to the pg-boss convert payload (TS mirror + Pydantic model) and a `jobs.last_run_was_resync` column stamped by the worker on successful completion — migration 0007. Enables the future sync-complete email sweep to distinguish a delta-sync finish from an initial-convert finish without reusing the per-type sent-at column (which would only fire once).
+
+- `app/server/db/schema/jobs.ts` + `drizzle/0007_chunky_santa_claus.sql` — new `last_run_was_resync boolean not null default false`.
+- `app/server/types/queue.ts` — `ConvertPayload.is_resync?: boolean`.
+- `worker/src/migrator/consumer.py` — Pydantic `is_resync: bool = False`; `_mark_rp_succeeded(pool, job_id, is_resync)` stamps the column atomically with status='succeeded'.
+- `app/server/api/jobs/[id]/resync.post.ts` — publishes with `is_resync: true`.
+- `app/server/api/webhooks/stripe.post.ts` — publishes with explicit `is_resync: false`.
+- `app/server/utils/schedule-tasks/email-notification-sweep.ts` — comment updated; sweep itself still deferred.
+
+The sync-complete email itself is still a follow-up (needs an `email_sync_complete_sent_at` column + a reset-on-each-resync mechanism since multiple delta-syncs should fire multiple emails). This task is just the plumbing.
+
+DONE: `jobs/phase2-nuxt/DONE-resync-flag.md`.
+
 ### feat(refund): eFactura-aware SmartBill reversal on admin refund (Part B)
 
 Part B of `PLAN-stripe-elements-and-refund-storno.md`. Makes admin refunds reverse the SmartBill invoice in the right way: cancel (DELETE) if the invoice hasn't reached ANAF SPV yet, storno (POST /invoice/reverse → creditNote) if it has. Cancel-vs-storno decided by querying SmartBill's eFactura status first; 4h timer is the fallback when SmartBill's status API is unreachable. Partial refunds are **disallowed** per plan decision D3 — endpoint body is `{ reason }` only, `amount` explicitly rejected.

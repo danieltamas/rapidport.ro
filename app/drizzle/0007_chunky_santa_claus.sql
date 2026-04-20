@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "last_run_was_resync" boolean DEFAULT false NOT NULL;

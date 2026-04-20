@@ -82,11 +82,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // 6. Publish convert job. snake_case keys mirror consumer.py Pydantic.
+  // is_resync=true stamps jobs.last_run_was_resync on completion so the future
+  // sync-complete email sweep can distinguish this run from the initial convert.
   const payload: ConvertPayload = {
     job_id: id,
     input_path: join(DATA_ROOT, id, 'upload', job.uploadDiskFilename),
     output_dir: join(DATA_ROOT, id, 'output'),
     mapping_profile: null,
+    is_resync: true,
   };
   await publishConvert(payload);
 

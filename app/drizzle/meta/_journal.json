@@ -50,6 +50,13 @@
       "when": 1776717229166,
       "tag": "0006_huge_gressill",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776718463836,
+      "tag": "0007_chunky_santa_claus",
+      "breakpoints": true
     }
   ]
 }
