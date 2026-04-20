@@ -19,6 +19,15 @@ import {
 const route = useRoute()
 const collapsed = ref(false)
 
+// Force dark mode on <html> while mounted under this layout. Putting `class="dark"`
+// on the layout root alone was unreliable — some shadcn primitives (Dialog portals,
+// tooltips) render outside the layout's DOM subtree, so they'd pick up the light
+// :root palette and look off. Scoping to <html> fixes both.
+useHead({
+  htmlAttrs: { class: 'dark' },
+  meta: [{ name: 'robots', content: 'noindex,nofollow' }],
+})
+
 const nav = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard },
   { to: '/admin/jobs', label: 'Jobs', icon: Briefcase },
@@ -55,7 +64,7 @@ async function logout() {
 </script>
 
 <template>
-  <div class="dark min-h-dvh bg-background text-foreground flex">
+  <div class="min-h-dvh bg-background text-foreground flex">
     <!-- Sidebar -->
     <aside
       class="border-r border-border bg-card flex flex-col transition-[width] duration-150 ease-out"

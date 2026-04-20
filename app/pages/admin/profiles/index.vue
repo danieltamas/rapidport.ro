@@ -170,7 +170,7 @@ async function submitDialog(): Promise<void> {
 </script>
 
 <template>
-  <div class="px-6 py-6 max-w-[1400px]">
+  <div class="px-6 py-6 max-w-[1400px] mx-auto">
     <div class="flex items-end justify-between gap-4 mb-6">
       <div>
         <h1 class="text-xl font-semibold tracking-tight">Mapping profiles</h1>

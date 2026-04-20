@@ -11,16 +11,23 @@ import { defineEventHandler, getRequestURL, sendRedirect } from 'h3';
 import { assertAdminSession } from '../utils/assert-admin-session';
 
 const EXEMPT_PREFIXES = ['/admin/login', '/api/auth/google/'] as const;
-const PAGE_PREFIX = '/admin/';
 const API_PREFIX = '/api/admin/';
 
 function isExempt(pathname: string): boolean {
   return EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
 }
 
+// Page match covers both the bare /admin and all sub-paths /admin/jobs, /admin/users, etc.
+// Previously this used `pathname.startsWith('/admin/')` which missed the bare /admin route,
+// letting unauthenticated users land on the dashboard shell and see a 401 flash from the
+// API instead of the login redirect.
+function isAdminPage(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/');
+}
+
 export default defineEventHandler(async (event) => {
   const pathname = getRequestURL(event).pathname;
-  const isPage = pathname.startsWith(PAGE_PREFIX);
+  const isPage = isAdminPage(pathname);
   const isApi = pathname.startsWith(API_PREFIX);
   if (!isPage && !isApi) return;
   if (isExempt(pathname)) return;

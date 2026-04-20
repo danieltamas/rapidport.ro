@@ -140,7 +140,7 @@ function goTo(id: string) {
 </script>
 
 <template>
-  <div class="px-6 py-6 max-w-[1600px]">
+  <div class="px-6 py-6 max-w-[1600px] mx-auto">
     <div class="flex items-end justify-between gap-4 mb-6">
       <div>
         <h1 class="text-xl font-semibold tracking-tight">Users</h1>
