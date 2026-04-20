@@ -15,6 +15,17 @@ export const payments = pgTable(
     stripeFeeAmount: integer('stripe_fee_amount'),
     smartbillInvoiceId: text('smartbill_invoice_id'),
     smartbillInvoiceUrl: text('smartbill_invoice_url'),
+    // Stamped by the invoice sweep when an invoice is issued. Load-bearing for
+    // the 4h eFactura cutoff heuristic used as a fallback when the eFactura
+    // status API is unreachable — before-SPV = DELETE, after = storno.
+    smartbillIssuedAt: timestamp('smartbill_issued_at', { withTimezone: true }),
+    // Reversal bookkeeping (exactly one set at most — canceled XOR stornoed).
+    //   canceled  → SmartBill DELETE succeeded while the invoice was pre-SPV
+    //   storno    → SmartBill reverse/creditNote issued when invoice was at SPV
+    smartbillCanceledAt: timestamp('smartbill_canceled_at', { withTimezone: true }),
+    smartbillStornoInvoiceId: text('smartbill_storno_invoice_id'),
+    smartbillStornoInvoiceUrl: text('smartbill_storno_invoice_url'),
+    smartbillStornoedAt: timestamp('smartbill_stornoed_at', { withTimezone: true }),
     amount: integer('amount').notNull(),
     currency: text('currency').default('ron').notNull(),
     status: text('status').notNull(),

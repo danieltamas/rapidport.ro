@@ -85,6 +85,9 @@ export async function runSmartBillInvoiceSweep(): Promise<{ issued: number; fail
         .set({
           smartbillInvoiceId: invoice.number,
           smartbillInvoiceUrl: invoice.url,
+          // Stamp the issuance moment — used by refund.post.ts as the 4h-cutoff
+          // fallback when the eFactura-status query is unreachable.
+          smartbillIssuedAt: new Date(),
         })
         .where(eq(payments.id, row.paymentId));
       issued += 1;

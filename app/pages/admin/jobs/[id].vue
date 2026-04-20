@@ -50,6 +50,13 @@ type Payment = {
   status: string
   refundedAmount: number
   createdAt: string | null
+  smartbillInvoiceId: string | null
+  smartbillInvoiceUrl: string | null
+  smartbillIssuedAt: string | null
+  smartbillCanceledAt: string | null
+  smartbillStornoInvoiceId: string | null
+  smartbillStornoInvoiceUrl: string | null
+  smartbillStornoedAt: string | null
   [k: string]: unknown
 }
 type AuditRow = {
@@ -130,7 +137,6 @@ const actionError = ref<string | null>(null)
 const actionWarnings = ref<string[]>([])
 
 // Form values
-const refundAmountRon = ref<string>('')
 const refundReason = ref<string>('')
 
 const extendAdditional = ref<number>(1)
@@ -150,8 +156,8 @@ function openAction(a: ActionName) {
   actionError.value = null
   actionWarnings.value = []
   if (a === 'refund') {
-    refundAmountRon.value = refundableBani.value > 0 ? (refundableBani.value / 100).toFixed(2) : ''
     refundReason.value = ''
+    refundReversalNote.value = null
   } else if (a === 'extend') {
     extendAdditional.value = 1
     extendReason.value = ''
@@ -224,13 +230,41 @@ async function deleteJob(): Promise<void> {
   }
 }
 
-function submitRefund() {
-  const ronNum = Number(refundAmountRon.value)
-  const body: Record<string, unknown> = { reason: refundReason.value }
-  if (refundAmountRon.value && Number.isFinite(ronNum) && ronNum > 0) {
-    body.amount = Math.round(ronNum * 100) // bani
+// Refund has a custom flow (not postAction's auto-close) — when SmartBill
+// reversal fails, we keep the dialog open and surface the cause so the admin
+// can reconcile SmartBill manually instead of discovering it in the audit log.
+const refundReversalNote = ref<string | null>(null)
+async function submitRefund(): Promise<void> {
+  submitting.value = true
+  actionError.value = null
+  actionWarnings.value = []
+  refundReversalNote.value = null
+  try {
+    const res = await $fetch<{
+      ok: true
+      reversal?: { kind: 'cancel' | 'storno' | 'none'; note?: string | null }
+    }>(`/api/admin/jobs/${jobId.value}/refund`, {
+      method: 'POST',
+      headers: { 'x-csrf-token': readCsrf() },
+      body: { reason: refundReason.value },
+    })
+    const note = res.reversal?.note ?? null
+    if (note && note.startsWith('reversal_failed_')) {
+      // Stripe refunded; SmartBill reversal failed. Keep the dialog open, show
+      // the note so Dani knows to fix SmartBill manually.
+      refundReversalNote.value = note
+      await refresh()
+    } else {
+      openDialog.value = null
+      await refresh()
+    }
+  } catch (e) {
+    const { message, warnings } = extractError(e)
+    actionError.value = message
+    if (warnings) actionWarnings.value = warnings
+  } finally {
+    submitting.value = false
   }
-  return postAction(`/api/admin/jobs/${jobId.value}/refund`, body)
 }
 function submitExtend() {
   return postAction(`/api/admin/jobs/${jobId.value}/extend-syncs`, {
@@ -387,6 +421,7 @@ function submitRerun() {
               <TableHead class="text-right w-[120px]">Amount (RON)</TableHead>
               <TableHead class="w-[120px]">Status</TableHead>
               <TableHead class="text-right w-[140px]">Refunded (RON)</TableHead>
+              <TableHead class="w-[200px]">SmartBill</TableHead>
               <TableHead class="w-[180px]">Created</TableHead>
             </TableRow>
           </TableHeader>
@@ -402,10 +437,35 @@ function submitRerun() {
                   </Badge>
                 </TableCell>
                 <TableCell class="text-right font-mono text-xs tabular-nums">{{ baniToRon(p.refundedAmount ?? 0) }}</TableCell>
+                <TableCell class="font-mono text-[11px] leading-relaxed">
+                  <div v-if="p.smartbillInvoiceId">
+                    <a
+                      v-if="p.smartbillInvoiceUrl"
+                      :href="p.smartbillInvoiceUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-primary hover:underline"
+                    >{{ p.smartbillInvoiceId }}</a>
+                    <span v-else>{{ p.smartbillInvoiceId }}</span>
+                    <span v-if="p.smartbillCanceledAt" class="ml-1.5 inline-block rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 px-1 text-[10px] uppercase tracking-wide">cancelled</span>
+                    <div v-if="p.smartbillStornoInvoiceId" class="text-muted-foreground mt-0.5">
+                      storno:
+                      <a
+                        v-if="p.smartbillStornoInvoiceUrl"
+                        :href="p.smartbillStornoInvoiceUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-primary hover:underline"
+                      >{{ p.smartbillStornoInvoiceId }}</a>
+                      <span v-else>{{ p.smartbillStornoInvoiceId }}</span>
+                    </div>
+                  </div>
+                  <span v-else class="text-muted-foreground">—</span>
+                </TableCell>
                 <TableCell class="font-mono text-xs text-muted-foreground">{{ formatDate(p.createdAt) }}</TableCell>
               </TableRow>
             </template>
-            <TableEmpty v-else :colspan="6">No payments on file.</TableEmpty>
+            <TableEmpty v-else :colspan="7">No payments on file.</TableEmpty>
           </TableBody>
         </Table>
       </div>
@@ -448,14 +508,11 @@ function submitRerun() {
         <DialogHeader>
           <DialogTitle>Refund payment</DialogTitle>
           <DialogDescription>
-            Max refundable: <span class="font-mono">{{ baniToRon(refundableBani) }} RON</span>. Leave amount blank to refund the full remaining balance.
+            Full refund of <span class="font-mono">{{ baniToRon(refundableBani) }} RON</span>. SmartBill invoice is reversed automatically —
+            cancelled if still pre-SPV, stornoed if already at ANAF.
           </DialogDescription>
         </DialogHeader>
         <div class="grid gap-3 py-2">
-          <div class="grid gap-1">
-            <label class="text-[11px] uppercase tracking-wide text-muted-foreground" for="refund-amount">Amount (RON)</label>
-            <Input id="refund-amount" v-model="refundAmountRon" type="number" step="0.01" min="0" placeholder="e.g. 49.00" />
-          </div>
           <div class="grid gap-1">
             <label class="text-[11px] uppercase tracking-wide text-muted-foreground" for="refund-reason">Reason</label>
             <textarea
@@ -469,10 +526,24 @@ function submitRerun() {
           <div v-if="actionError" class="rounded border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">
             {{ actionError }}
           </div>
+          <!-- Partial-success banner: Stripe refunded, SmartBill reversal failed.
+               Admin must fix SmartBill manually. -->
+          <div v-if="refundReversalNote" class="rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 p-3 text-sm">
+            Stripe refund succeeded, but SmartBill reversal failed
+            (<span class="font-mono">{{ refundReversalNote }}</span>).
+            Please cancel or storno the invoice manually in SmartBill.
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" :disabled="submitting" @click="closeDialog">Cancel</Button>
-          <Button variant="destructive" :disabled="submitting || !refundReason.trim()" @click="submitRefund">
+          <Button variant="outline" :disabled="submitting" @click="closeDialog">
+            {{ refundReversalNote ? 'Close' : 'Cancel' }}
+          </Button>
+          <Button
+            v-if="!refundReversalNote"
+            variant="destructive"
+            :disabled="submitting || !refundReason.trim()"
+            @click="submitRefund"
+          >
             {{ submitting ? 'Refunding…' : 'Confirm refund' }}
           </Button>
         </DialogFooter>

@@ -8,6 +8,20 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-20
 
+### feat(refund): eFactura-aware SmartBill reversal on admin refund (Part B)
+
+Part B of `PLAN-stripe-elements-and-refund-storno.md`. Makes admin refunds reverse the SmartBill invoice in the right way: cancel (DELETE) if the invoice hasn't reached ANAF SPV yet, storno (POST /invoice/reverse → creditNote) if it has. Cancel-vs-storno decided by querying SmartBill's eFactura status first; 4h timer is the fallback when SmartBill's status API is unreachable. Partial refunds are **disallowed** per plan decision D3 — endpoint body is `{ reason }` only, `amount` explicitly rejected.
+
+- **Migration 0006** — `payments` gains `smartbill_issued_at`, `smartbill_canceled_at`, `smartbill_storno_invoice_id`, `smartbill_storno_invoice_url`, `smartbill_stornoed_at`. Generated via drizzle-kit, applied.
+- **`app/server/utils/smartbill.ts`** — refactored per-endpoint inline fetch into shared `sbFetch` helper; added `cancelInvoice`, `reverseInvoice`, `getEfacturaStatus`, `splitInvoiceId` primitives. `getEfacturaStatus` normalizes to `pending | validated | rejected | unknown`. `submitted` maps to `validated` (past cancel window).
+- **Sweep** — stamps `smartbill_issued_at` on invoice creation; load-bearing for the 4h fallback.
+- **`app/server/api/admin/jobs/[id]/refund.post.ts`** — full rewrite. Flow: Stripe refund → decide reversal via query-first (pending→cancel, validated→storno, rejected→cancel-to-clean-local, unknown→4h timer; null issuedAt defaults to storno per SBB) → execute with cancel-to-storno upgrade on SmartBill validation rejection → DB tx (payments + audit). Idempotency guard skips reversal when row already has canceled_at or storno_invoice_id.
+- **`app/pages/admin/jobs/[id].vue`** — refund dialog copy rewritten (no more amount field); payments table gains a SmartBill column showing invoice link + CANCELLED badge + storno sub-row; partial-success banner (Stripe refunded + SmartBill reversal failed) keeps dialog open with amber alert.
+
+**Caveats for first live run:** `POST /invoice/reverse` endpoint shape inferred from SmartBill docs — Lexito doesn't call it, so there's no production reference. Before the first post-4h refund, verify the endpoint against SmartBill's current API. If it 404s or returns unexpected shape, fix `reverseInvoice` in `smartbill.ts`.
+
+DONE: `jobs/phase2-nuxt/DONE-refund-reversal.md`.
+
 ### feat(pay): Stripe Elements on /job/[id]/pay — green-path close, Part A
 
 Part A of `PLAN-stripe-elements-and-refund-storno.md`. Adds card entry to the pay flow; the server endpoint was already returning `clientSecret`, only the client UI was missing.

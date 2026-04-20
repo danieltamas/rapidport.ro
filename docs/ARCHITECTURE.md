@@ -102,7 +102,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   ├── magic_link_tokens.ts  # hashed single-use tokens — 15-min TTL, email+expires_at index
 │   │   │   │   ├── admin_sessions.ts  # admin sessions — email, ip_hash (IP-bound), 8h TTL
 │   │   │   │   ├── admin_oauth_state.ts  # PKCE state+verifier — 10-min TTL (cron-pruned)
-│   │   │   │   ├── payments.ts        # Stripe payment + SmartBill invoice records, refund tracking
+│   │   │   │   ├── payments.ts        # Stripe payment + SmartBill invoice records, refund tracking + reversal state (smartbill_issued_at, smartbill_canceled_at, smartbill_storno_invoice_id/url, smartbill_stornoed_at — migration 0006)
 │   │   │   │   ├── stripe_events.ts   # Stripe webhook idempotency dedup by event ID
 │   │   │   │   ├── mapping_profiles.ts  # saved mapping rule sets — user_id FK, isPublic, adoptionCount
 │   │   │   │   ├── audit_log.ts       # user-facing audit — append-only, anonymized on GDPR delete
@@ -129,7 +129,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   ├── google-oauth.ts        # PKCE + authorize URL + token exchange + userinfo (raw fetch, no SDK)
 │   │   │   ├── queue.ts               # pg-boss singleton — getBoss() + publishConvert/publishDiscover
 │   │   │   ├── stripe.ts              # Stripe SDK singleton + jobPaymentIdempotencyKey('job_{id}_pay')
-│   │   │   ├── smartbill.ts           # SmartBill REST client (Basic Auth, 3x exp backoff, SmartBillError taxonomy, PJ useEFactura=true)
+│   │   │   ├── smartbill.ts           # SmartBill REST client — Basic Auth, 3x exp backoff, SmartBillError taxonomy. Primitives: createInvoice (PJ useEFactura=true), cancelInvoice (DELETE /invoice), reverseInvoice (POST /invoice/reverse — storno/creditNote), getEfacturaStatus (GET /invoice/paymentstatus → pending/validated/rejected/unknown), splitInvoiceId helper
 │   │   │   ├── anaf.ts                # demoanaf.ro client (Dani's product) — CUI → company lookup w/ async VAT resolution
 │   │   │   ├── admin-audit.ts         # auditRead() — fire-and-forget admin_audit_log insert for READ endpoints; mutation endpoints keep their transactional audit
 │   │   │   ├── purge-user.ts          # shared GDPR purge — used by DELETE /api/me + DELETE /api/admin/users/[id]
@@ -168,7 +168,7 @@ rapidport.ro/app/                      # repo root (note: this is the project di
 │   │   │   │   │   ├── index.get.ts         # GET /api/admin/jobs — paginated list, Zod filters, whitelisted sort
 │   │   │   │   │   ├── [id].get.ts          # GET /api/admin/jobs/[id] — full join (job + payments + audit), audit row written first
 │   │   │   │   │   └── [id]/
-│   │   │   │   │       ├── refund.post.ts          # Stripe refund w/ idempotency key; payments tx + audit
+│   │   │   │   │       ├── refund.post.ts          # full Stripe refund + eFactura-aware SmartBill reversal (query eFactura status → cancel < 4h / storno >= 4h); D3 disallows partials
 │   │   │   │   │       ├── extend-syncs.post.ts    # atomic deltaSyncsAllowed += N; audit
 │   │   │   │   │       ├── resend-download.post.ts # re-fires conversion-ready RO email
 │   │   │   │   │       ├── force-state.post.ts     # whitelisted from→to transitions; optimistic lock
