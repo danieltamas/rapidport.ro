@@ -57,6 +57,13 @@
       "when": 1776718463836,
       "tag": "0007_chunky_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776724592124,
+      "tag": "0008_glossy_jackpot",
+      "breakpoints": true
     }
   ]
 }

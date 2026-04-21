@@ -47,19 +47,13 @@ function readCsrf(): string {
   return m && m[1] ? decodeURIComponent(m[1]) : ''
 }
 
-// The /api/jobs endpoint requires explicit sourceSoftware + targetSoftware
-// (different values). When the user picks "auto" we infer the direction from
-// the archive extension: .tgz/.tar.gz is the WinMentor native backup format,
-// anything else (.zip / .7z / .rar) we treat as SAGA. Worker discovery will
-// still validate the actual archive structure and surface a mismatch.
-function resolveDirection(f: File): { sourceSoftware: 'winmentor' | 'saga'; targetSoftware: 'winmentor' | 'saga' } {
+// /api/jobs accepts 'auto' — when the user picks "Detectează automat" we pass
+// it through verbatim and the worker's discover stage resolves + persists the
+// concrete direction after inspecting the archive.
+function resolveDirection(): { sourceSoftware: 'winmentor' | 'saga' | 'auto'; targetSoftware: 'winmentor' | 'saga' | 'auto' } {
   if (source.value === 'winmentor') return { sourceSoftware: 'winmentor', targetSoftware: 'saga' }
   if (source.value === 'saga') return { sourceSoftware: 'saga', targetSoftware: 'winmentor' }
-  const name = f.name.toLowerCase()
-  const looksWinMentor = name.endsWith('.tgz') || name.endsWith('.tar.gz')
-  return looksWinMentor
-    ? { sourceSoftware: 'winmentor', targetSoftware: 'saga' }
-    : { sourceSoftware: 'saga', targetSoftware: 'winmentor' }
+  return { sourceSoftware: 'auto', targetSoftware: 'auto' }
 }
 
 async function submit() {
@@ -67,7 +61,7 @@ async function submit() {
   submitting.value = true
   errorMsg.value = null
   try {
-    const { sourceSoftware, targetSoftware } = resolveDirection(file.value)
+    const { sourceSoftware, targetSoftware } = resolveDirection()
 
     const created = await $fetch<{ id: string }>('/api/jobs', {
       method: 'POST',

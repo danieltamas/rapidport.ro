@@ -24,8 +24,12 @@ export const jobs = pgTable(
     // Phase 2 additions
     userId: uuid('user_id').references(() => users.id),
     anonymousAccessToken: text('anonymous_access_token').notNull(),
-    sourceSoftware: text('source_software').notNull(),
-    targetSoftware: text('target_software').notNull(),
+    // Nullable since migration 0008 — when the client selects "auto" on /upload
+    // the direction is deferred to worker discover, which writes the resolved
+    // value back once the archive is inspected. Pre-0008 rows always have both
+    // set; new rows may be null until discover completes.
+    sourceSoftware: text('source_software'),
+    targetSoftware: text('target_software'),
     uploadFilename: text('upload_filename'),
     // Server-controlled on-disk filename `{randomUUID}.{ext}` under
     // /data/jobs/{id}/upload/. Distinct from uploadFilename (the user's
