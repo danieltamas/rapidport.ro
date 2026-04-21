@@ -15,8 +15,10 @@ type Job = {
   status: string
   progressStage: string | null
   progressPct: number | null
-  sourceSoftware: string
-  targetSoftware: string
+  // Nullable since migration 0008 — jobs created with direction='auto' start
+  // with both null until worker discover resolves and backfills.
+  sourceSoftware: string | null
+  targetSoftware: string | null
   uploadFilename: string | null
   uploadSize: number | null
   billingEmail: string | null
@@ -116,9 +118,38 @@ onBeforeUnmount(() => {
 })
 
 const idShort = computed(() => jobId.value.slice(0, 8))
-const direction = computed(() =>
-  job.value ? `${job.value.sourceSoftware} → ${job.value.targetSoftware}` : '',
-)
+const direction = computed<string | null>(() => {
+  const src = job.value?.sourceSoftware
+  const tgt = job.value?.targetSoftware
+  if (!src || !tgt) return null
+  return `${src} → ${tgt}`
+})
+
+// Status pill — three visual shapes:
+//   - success: pachet gata
+//   - destructive: eșuat
+//   - processing (spinner + pct): server doing work right now
+//   - awaiting (amber, no spinner): waiting for user action
+// Pre-payment stages (mapping/reviewing) shouldn't look like the server is
+// busy — they're actually waiting for the accountant to approve/pay. The
+// 0%-with-spinner shape was misleading: it read as "processing" when the job
+// was idle waiting for input.
+type PillKind = 'success' | 'failed' | 'processing' | 'awaiting'
+const AWAITING_STAGES = new Set(['mapping', 'reviewing'])
+const statusPill = computed<{ kind: PillKind; label: string }>(() => {
+  if (isSucceeded.value) return { kind: 'success', label: 'Pachet gata' }
+  if (isFailed.value) return { kind: 'failed', label: 'Migrarea a eșuat' }
+  const stage = live.value.stage
+  if (stage && AWAITING_STAGES.has(stage)) {
+    return { kind: 'awaiting', label: 'Necesită acțiune' }
+  }
+  if (live.value.status === 'mapped') {
+    return { kind: 'awaiting', label: 'Așteaptă plată' }
+  }
+  // Everything else — awaiting_upload, uploaded, queued, extracting, parsing,
+  // paid, generating, reporting — is genuine server-side processing.
+  return { kind: 'processing', label: `${live.value.pct}%` }
+})
 </script>
 
 <template>
@@ -134,30 +165,27 @@ const direction = computed(() =>
               <h1 class="text-3xl md:text-4xl font-bold tracking-tight leading-tight" style="color: #000;">
                 Portare <span class="font-mono text-muted-foreground text-2xl md:text-3xl">#{{ idShort }}</span>
               </h1>
-              <div v-if="job" class="mt-3 text-sm text-muted-foreground uppercase tracking-wide">
+              <div v-if="direction" class="mt-3 text-sm text-muted-foreground uppercase tracking-wide">
                 {{ direction }}
+              </div>
+              <div v-else-if="job" class="mt-3 text-sm text-muted-foreground tracking-wide">
+                Detectare automată a direcției
               </div>
             </div>
             <div
-              v-if="isFailed"
-              class="flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1.5 rounded-full text-sm font-medium"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border"
+              :class="{
+                'bg-destructive/10 text-destructive border-destructive/20': statusPill.kind === 'failed',
+                'bg-success/10 text-success border-success/20': statusPill.kind === 'success',
+                'bg-warning/10 text-warning border-warning/20': statusPill.kind === 'awaiting',
+                'bg-muted text-muted-foreground border-border': statusPill.kind === 'processing',
+              }"
             >
-              <CircleAlert class="size-4" :stroke-width="2" />
-              Migrarea a eșuat
-            </div>
-            <div
-              v-else-if="isSucceeded"
-              class="flex items-center gap-2 bg-success/10 text-success border border-success/20 px-3 py-1.5 rounded-full text-sm font-medium"
-            >
-              <Check class="size-4" :stroke-width="2" />
-              Pachet gata
-            </div>
-            <div
-              v-else
-              class="flex items-center gap-2 bg-muted text-muted-foreground border border-border px-3 py-1.5 rounded-full text-sm font-medium"
-            >
-              <Loader2 class="size-4 animate-spin" :stroke-width="2" />
-              {{ live.pct }}%
+              <CircleAlert v-if="statusPill.kind === 'failed'" class="size-4" :stroke-width="2" />
+              <Check v-else-if="statusPill.kind === 'success'" class="size-4" :stroke-width="2" />
+              <Clock v-else-if="statusPill.kind === 'awaiting'" class="size-4" :stroke-width="2" />
+              <Loader2 v-else class="size-4 animate-spin" :stroke-width="2" />
+              {{ statusPill.label }}
             </div>
           </div>
 
