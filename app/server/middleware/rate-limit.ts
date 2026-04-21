@@ -42,7 +42,17 @@ function findRule(method: string, path: string): RouteRule | undefined {
   return undefined;
 }
 
+// Dev-only escape hatch. The SPEC §S.10 limits (e.g. 3/h on PUT upload) exist
+// to stop brute-force / scripted abuse in production. In dev, iterating on the
+// upload flow blows through 3 attempts in a minute and blocks the developer
+// for an hour with no recourse (the limit is IP-keyed in a table, not a
+// per-process memory store). Short-circuit the whole middleware when
+// NODE_ENV is not 'production' — prod still enforces unchanged.
+const RATE_LIMIT_ENABLED = process.env.NODE_ENV === 'production';
+
 export default defineEventHandler(async (event) => {
+  if (!RATE_LIMIT_ENABLED) return;
+
   const method = (event.method ?? 'GET').toUpperCase();
   const path = getRequestURL(event).pathname;
 

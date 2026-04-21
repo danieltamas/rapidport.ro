@@ -8,6 +8,16 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-21
 
+### fix: upload 413 for real this time + disable rate limit in dev
+
+Previous commit `4f113ff` set `/api/jobs/**/upload` on nuxt-security's `requestSizeLimiter` to lift the 8 MB default. It didn't work: 8.1 MB uploads still tripped the default. Compiled bundle inspection showed the rule was registered but not matching at request time.
+
+**Root cause:** nuxt-security resolves route rules through radix3, which only honors `**` at the END of a path. Mid-path globs like `/api/jobs/**/upload` silently don't match. Broadened to `/api/jobs/**`. All `/api/jobs/*` endpoints now get the 500 MB body cap; each endpoint still has handler-level validation (CSRF, Zod, assertJobAccess) and the upload handler still owns the real Content-Length + post-multipart size checks.
+
+Also: Dani got rate-limited after 3 real upload attempts (SPEC §S.10 caps PUT upload at 3/h/IP, persisted in the `rate_limits` table). In dev that's pure friction — the threat model is internet abuse, not localhost iteration. Added `RATE_LIMIT_ENABLED = process.env.NODE_ENV === 'production'` short-circuit at the top of `app/server/middleware/rate-limit.ts`. Prod behaviour unchanged.
+
+Files: `app/nuxt.config.ts`, `app/server/middleware/rate-limit.ts`. DONE: `jobs/fix-upload-413-ratelimit/DONE-fixes.md`.
+
 ### feat(ui): real upload progress bar on /upload (XHR + bytes-progress)
 
 `$fetch` wraps the Fetch API, which has no upload-progress event. Switched the multipart PUT to `XMLHttpRequest` so `xhr.upload.onprogress` drives a real 0–100 bar. The POST /api/jobs call stays `$fetch` (no body to stream there). CSRF header + cookie flow (`withCredentials = true`) preserved.
