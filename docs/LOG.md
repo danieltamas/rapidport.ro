@@ -8,6 +8,22 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-21
 
+### feat(api): /api/jobs accepts `'auto'`, defers direction to worker discover
+
+Follow-up to the upload-wire fix. The previous change inferred WM/SAGA client-side from file extension; Dani asked for the cleaner shape — let the server accept 'auto' and defer to the worker.
+
+**Schema.** Migration `0008_glossy_jackpot.sql` drops `NOT NULL` on `jobs.source_software` + `jobs.target_software`. Additive, reversible, no backfill — existing rows keep their values. `app/server/db/schema/jobs.ts:27-32` drops `.notNull()` with a comment.
+
+**API.** `app/server/api/jobs/index.post.ts` now accepts `sourceSoftware` / `targetSoftware` as `'winmentor' | 'saga' | 'auto'` (optional). When either side is `'auto'` / omitted, the differ-check is skipped and `null` is written to the column via `resolveSoftware()`. Concrete values behave exactly as before.
+
+**Client.** `app/pages/upload.vue` — dropped the extension heuristic, sends `{sourceSoftware: 'auto', targetSoftware: 'auto'}` explicitly when the user picks "Detectează automat" (per Dani: explicit over omitted — easier to read in network logs).
+
+**Display.** `app/pages/job/[id]/result.vue` now types source/target as nullable and uses `srcLabel` / `tgtLabel` computeds with Romanian fallbacks ("sistemul sursă" / "sistemul țintă"). Admin pages already handled null with `?? '—'`.
+
+**Deferred to follow-up wave.** Worker (`consumer.py`, `pipeline.py`, `cli.py`) still hardcodes WinMentor→SAGA. The "discover writes resolved direction back to jobs" piece lands after the discover handler is actually implemented (still a stub per Wave-4 entries below). For now 'auto' jobs stay null end-to-end; the worker processes them as WM→SAGA regardless.
+
+Files: `app/server/db/schema/jobs.ts`, `app/drizzle/0008_glossy_jackpot.sql`, `app/server/api/jobs/index.post.ts`, `app/pages/upload.vue`, `app/pages/job/[id]/result.vue`. Plan: `jobs/api-auto-direction/PLAN-accept-auto.md`. DONE: `jobs/api-auto-direction/DONE-accept-auto.md`.
+
 ### fix(ui): wire upload page submit — button was dead
 
 Dani reported: "added the file for upload, nothing happens, no upload." Root cause: `app/pages/upload.vue` "Continuă spre validare" `<Button>` had no `@click` handler. File selection worked (drag/drop + picker both populated `file.value`), but the primary action was a pure visual — no `/api/jobs` POST, no `/api/jobs/{id}/upload` PUT, no navigation.

@@ -21,18 +21,34 @@ import { jobs } from '../../db/schema';
 import { generateAnonymousToken, setAnonymousTokenCookie } from '../../utils/anonymous-token';
 import { getUserSession } from '../../utils/auth-user';
 
-const SoftwareEnum = z.enum(['winmentor', 'saga']);
+// 'auto' defers direction detection to the worker discover stage — the archive
+// magic-byte sniff on /upload can't tell WinMentor from SAGA apart reliably
+// enough (both ship as .tgz in some versions). Stored as null in the DB until
+// discover resolves and writes the concrete direction back (follow-up wave).
+const SoftwareEnum = z.enum(['winmentor', 'saga', 'auto']);
 
 const BodySchema = z
   .object({
-    sourceSoftware: SoftwareEnum,
-    targetSoftware: SoftwareEnum,
+    sourceSoftware: SoftwareEnum.optional(),
+    targetSoftware: SoftwareEnum.optional(),
     billingEmail: z.string().email().max(255).optional(),
   })
-  .refine((v) => v.sourceSoftware !== v.targetSoftware, {
-    message: 'sourceSoftware and targetSoftware must differ',
-    path: ['targetSoftware'],
-  });
+  .refine(
+    (v) => {
+      const s = v.sourceSoftware ?? 'auto';
+      const t = v.targetSoftware ?? 'auto';
+      if (s === 'auto' || t === 'auto') return true;
+      return s !== t;
+    },
+    {
+      message: 'sourceSoftware and targetSoftware must differ',
+      path: ['targetSoftware'],
+    },
+  );
+
+function resolveSoftware(v: 'winmentor' | 'saga' | 'auto' | undefined): 'winmentor' | 'saga' | null {
+  return v === 'winmentor' || v === 'saga' ? v : null;
+}
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -55,8 +71,8 @@ export default defineEventHandler(async (event) => {
     .values({
       userId,
       anonymousAccessToken,
-      sourceSoftware: body.sourceSoftware,
-      targetSoftware: body.targetSoftware,
+      sourceSoftware: resolveSoftware(body.sourceSoftware),
+      targetSoftware: resolveSoftware(body.targetSoftware),
       billingEmail: body.billingEmail ?? null,
       status: 'created',
       progressStage: 'awaiting_upload',

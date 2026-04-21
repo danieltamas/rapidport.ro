@@ -14,8 +14,10 @@ type Job = {
   id: string
   status: string
   progressStage: string | null
-  sourceSoftware: string
-  targetSoftware: string
+  // Null for jobs created with direction='auto' before worker discover has
+  // resolved the concrete direction (schema nullable since migration 0008).
+  sourceSoftware: string | null
+  targetSoftware: string | null
   billingEmail: string | null
   deltaSyncsUsed: number | null
   deltaSyncsAllowed: number | null
@@ -31,6 +33,8 @@ const { data: job, refresh } = await useAsyncData(
 )
 
 const isReady = computed(() => job.value?.status === 'succeeded')
+const srcLabel = computed(() => job.value?.sourceSoftware ?? 'sistemul sursă')
+const tgtLabel = computed(() => job.value?.targetSoftware ?? 'sistemul țintă')
 const idShort = computed(() => jobId.value.slice(0, 8))
 const downloadUrl = computed(() => `/api/jobs/${jobId.value}/download`)
 const used = computed(() => job.value?.deltaSyncsUsed ?? 0)
@@ -122,7 +126,7 @@ async function triggerResync() {
                   <FileText class="size-5 text-muted-foreground shrink-0 mt-0.5" :stroke-width="1.5" />
                   <div class="text-sm text-foreground leading-relaxed">
                     Fișierele de import în SAGA (DBF + XML pe lună) generate din arhiva
-                    <span class="font-mono">{{ job?.sourceSoftware }}</span> originală.
+                    <span class="font-mono">{{ srcLabel }}</span> originală.
                   </div>
                 </div>
                 <div class="flex items-start gap-4 px-5 py-4">
@@ -156,7 +160,7 @@ async function triggerResync() {
                 <RefreshCw class="size-5 text-primary mb-3" :stroke-width="2" />
                 <div class="font-semibold mb-2">Sincronizări delta ({{ remaining }} rămase din {{ allowed }})</div>
                 <p class="text-sm text-muted-foreground mb-4 leading-relaxed">
-                  Dacă apar facturi noi în {{ job?.sourceSoftware }} între timp, le aducem incremental în {{ job?.targetSoftware }}.
+                  Dacă apar facturi noi în {{ srcLabel }} între timp, le aducem incremental în {{ tgtLabel }}.
                 </p>
                 <Button
                   variant="outline"
