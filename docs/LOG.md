@@ -8,6 +8,18 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-21
 
+### feat(ui): real upload progress bar on /upload (XHR + bytes-progress)
+
+`$fetch` wraps the Fetch API, which has no upload-progress event. Switched the multipart PUT to `XMLHttpRequest` so `xhr.upload.onprogress` drives a real 0–100 bar. The POST /api/jobs call stays `$fetch` (no body to stream there). CSRF header + cookie flow (`withCredentials = true`) preserved.
+
+Bar matches SPEC §"UI Design System" — 4px `bg-primary` fill on `bg-border` track, percentage inline-right in `font-mono tabular-nums`, `role="progressbar"` + ARIA. File-preview subline transitions `gata de încărcare` → `se încarcă…` → `încărcat · se procesează` across the upload.
+
+Error mapping centralised in a `mapError()` helper so both the $fetch path (POST /api/jobs) and the XHR path (PUT upload) route through one table. XHR `onerror` / `onabort` map to `statusCode: 0` → generic "verificați conexiunea" copy.
+
+Not done: chunked/resumable upload, speed/ETA readout, fetch + ReadableStream (Safari doesn't fully support duplex streaming yet). Revisit if users report dropped connections.
+
+Files: `app/pages/upload.vue`. DONE: `jobs/upload-progress/DONE-xhr-progress.md`.
+
 ### fix(infra): raise nuxt-security body-size cap on /api/jobs/**/upload
 
 Dani uploaded an 8.1 MB .tgz and got back "Arhiva depășește 500 MB". The archive is nowhere near 500 MB — but `nuxt-security`'s `requestSizeLimiter` defaults to `maxUploadFileRequestInBytes: 8_000_000` (8 MB), and our 8.1 MB multipart body tripped it before `upload.put.ts` ever ran. The handler's own 500 MB check never got a chance; the client saw a raw 413 and mapped it to the "oversize" copy.

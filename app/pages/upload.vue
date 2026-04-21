@@ -21,6 +21,9 @@ const file = ref<File | null>(null)
 const dragover = ref(false)
 const submitting = ref(false)
 const errorMsg = ref<string | null>(null)
+// Upload progress 0–100. Null when we haven't started yet / after error.
+// Tracked via XHR `upload.onprogress`; $fetch/fetch don't expose upload events.
+const progress = ref<number | null>(null)
 
 function onDrop(e: DragEvent) {
   e.preventDefault()
@@ -56,10 +59,64 @@ function resolveDirection(): { sourceSoftware: 'winmentor' | 'saga' | 'auto'; ta
   return { sourceSoftware: 'auto', targetSoftware: 'auto' }
 }
 
+type UploadError = { statusCode: number; errorCode: string | null }
+
+// Upload via XHR (not $fetch) because upload progress events require the
+// XHR `upload.onprogress` callback — the Fetch API + $fetch don't expose
+// upload-side progress. Response body is parsed best-effort to extract
+// our `data.error` string tag for the caller's error mapping.
+function xhrUpload(jobId: string, body: FormData, onProgress: (pct: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', `/api/jobs/${jobId}/upload`)
+    xhr.setRequestHeader('x-csrf-token', readCsrf())
+    // No explicit Content-Type — the browser sets multipart/form-data with
+    // the correct boundary when FormData is sent. Manually setting it breaks
+    // the boundary and the server can't parse the multipart body.
+    xhr.withCredentials = true
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)))
+      }
+    }
+    xhr.onerror = () => reject({ statusCode: 0, errorCode: null } satisfies UploadError)
+    xhr.onabort = () => reject({ statusCode: 0, errorCode: null } satisfies UploadError)
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve()
+        return
+      }
+      let errorCode: string | null = null
+      try {
+        const parsed = JSON.parse(xhr.responseText) as { data?: { error?: string } }
+        errorCode = typeof parsed?.data?.error === 'string' ? parsed.data.error : null
+      } catch {
+        // non-JSON body (proxy HTML error page, etc.) — leave errorCode null
+      }
+      reject({ statusCode: xhr.status, errorCode } satisfies UploadError)
+    }
+    xhr.send(body)
+  })
+}
+
+function mapError(status: number | undefined, code: string | null | undefined): string {
+  if (status === 413 || code === 'payload_too_large') {
+    return 'Arhiva depășește 500 MB. Exportați o bază mai mică sau ne scrieți pe email.'
+  }
+  if (status === 415 || code === 'unsupported_archive_type') {
+    return 'Format nerecunoscut. Acceptăm .tgz, .zip, .7z, .rar.'
+  }
+  if (status === 429) {
+    return 'Prea multe încărcări. Încercați peste o oră.'
+  }
+  return 'Încărcarea a eșuat. Verificați conexiunea și încercați din nou.'
+}
+
 async function submit() {
   if (!file.value || submitting.value) return
   submitting.value = true
   errorMsg.value = null
+  progress.value = 0
   try {
     const { sourceSoftware, targetSoftware } = resolveDirection()
 
@@ -71,25 +128,21 @@ async function submit() {
 
     const form = new FormData()
     form.append('file', file.value)
-    await $fetch(`/api/jobs/${created.id}/upload`, {
-      method: 'PUT',
-      headers: { 'x-csrf-token': readCsrf() },
-      body: form,
+    await xhrUpload(created.id, form, (pct) => {
+      progress.value = pct
     })
 
     await navigateTo(`/job/${created.id}/discovery`)
   } catch (err: unknown) {
-    const status = (err as { statusCode?: number })?.statusCode
-    const code = (err as { data?: { error?: string } })?.data?.error
-    if (status === 413 || code === 'payload_too_large') {
-      errorMsg.value = 'Arhiva depășește 500 MB. Exportați o bază mai mică sau ne scrieți pe email.'
-    } else if (status === 415 || code === 'unsupported_archive_type') {
-      errorMsg.value = 'Format nerecunoscut. Acceptăm .tgz, .zip, .7z, .rar.'
-    } else if (status === 429) {
-      errorMsg.value = 'Prea multe încărcări. Încercați peste o oră.'
-    } else {
-      errorMsg.value = 'Încărcarea a eșuat. Verificați conexiunea și încercați din nou.'
-    }
+    // Two error shapes to unwrap: $fetch's FetchError (POST /api/jobs path) and
+    // our xhrUpload's UploadError shape.
+    const fetchStatus = (err as { statusCode?: number })?.statusCode
+    const fetchCode = (err as { data?: { error?: string } })?.data?.error
+    const uploadErr = err as Partial<UploadError>
+    const status = uploadErr?.statusCode ?? fetchStatus
+    const code = uploadErr?.errorCode ?? fetchCode ?? null
+    errorMsg.value = mapError(status, code)
+    progress.value = null
   } finally {
     submitting.value = false
   }
@@ -175,8 +228,22 @@ async function submit() {
               </div>
               <div>
                 <div class="font-semibold">{{ file.name }}</div>
-                <div class="text-sm text-muted-foreground">{{ fmtSize(file.size) }} · gata de încărcare</div>
+                <div class="text-sm text-muted-foreground">
+                  {{ fmtSize(file.size) }} ·
+                  <span v-if="progress === null">gata de încărcare</span>
+                  <span v-else-if="progress < 100">se încarcă…</span>
+                  <span v-else>încărcat · se procesează</span>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <div v-if="submitting && progress !== null" class="mt-6">
+            <div class="flex items-center gap-3">
+              <div class="flex-1 h-1 rounded-full bg-border overflow-hidden" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100">
+                <div class="h-full bg-primary transition-[width] duration-150 ease-out" :style="{ width: `${progress}%` }" />
+              </div>
+              <div class="font-mono text-xs text-muted-foreground tabular-nums w-10 text-right">{{ progress }}%</div>
             </div>
           </div>
 
