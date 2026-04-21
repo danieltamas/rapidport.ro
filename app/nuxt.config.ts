@@ -154,6 +154,27 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2025-10-15',
 
+  // Per-route overrides consumed by nuxt-security (separate from
+  // `nitro.routeRules` above, which is method-agnostic for CORS).
+  //
+  // nuxt-security's requestSizeLimiter defaults are 2 MB for normal requests
+  // and 8 MB for file-upload requests — both well below our 500 MB spec cap
+  // on PUT /api/jobs/{id}/upload (SPEC §2.2 + upload.put.ts MAX_UPLOAD_BYTES).
+  // The 8 MB default silently trips 413 BEFORE the handler's own
+  // Content-Length check runs, so even an 8.1 MB WinMentor archive is
+  // rejected. Raise the cap to 500 MB on the upload route only; defaults
+  // stay strict for every other endpoint (defence in depth).
+  routeRules: {
+    '/api/jobs/**/upload': {
+      security: {
+        requestSizeLimiter: {
+          maxRequestSizeInBytes: 524_288_000,       // 500 MB
+          maxUploadFileRequestInBytes: 524_288_000, // 500 MB
+        },
+      },
+    },
+  },
+
   // nuxt-security owns CSP + headers in prod (replaces the hand-rolled
   // server/middleware/security-headers.ts). Nonces are injected into SSR
   // inline scripts/styles so the strict CSP works with Nuxt/Vite payloads.

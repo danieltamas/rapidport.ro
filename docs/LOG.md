@@ -8,6 +8,16 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-21
 
+### fix(infra): raise nuxt-security body-size cap on /api/jobs/**/upload
+
+Dani uploaded an 8.1 MB .tgz and got back "Arhiva depășește 500 MB". The archive is nowhere near 500 MB — but `nuxt-security`'s `requestSizeLimiter` defaults to `maxUploadFileRequestInBytes: 8_000_000` (8 MB), and our 8.1 MB multipart body tripped it before `upload.put.ts` ever ran. The handler's own 500 MB check never got a chance; the client saw a raw 413 and mapped it to the "oversize" copy.
+
+Added a top-level `routeRules` block in `app/nuxt.config.ts` that overrides the nuxt-security limiter only for `/api/jobs/**/upload`, raising both `maxRequestSizeInBytes` and `maxUploadFileRequestInBytes` to 500 MB. Every other endpoint keeps the 2 MB / 8 MB defaults — defence in depth. The handler's own Content-Length + post-multipart size checks are unchanged and still do the real cap.
+
+Not fixed here: the "no upload progress bar" complaint. `$fetch` / `fetch` don't expose upload progress events; needs XMLHttpRequest or streaming-fetch. Proposed as separate work.
+
+Files: `app/nuxt.config.ts`. DONE: `jobs/fix-upload-size-limit/DONE-raise-cap.md`.
+
 ### feat(api): /api/jobs accepts `'auto'`, defers direction to worker discover
 
 Follow-up to the upload-wire fix. The previous change inferred WM/SAGA client-side from file extension; Dani asked for the cleaner shape — let the server accept 'auto' and defer to the worker.
