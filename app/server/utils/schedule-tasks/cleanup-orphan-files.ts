@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import { inArray } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { jobs } from '../../db/schema';
+import { env } from '../env';
 
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function runCleanupOrphanFiles(): Promise<{ deleted: number }> {

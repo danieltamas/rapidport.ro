@@ -1,5 +1,14 @@
 // Env is validated at boot. Missing required vars = process exits. Never use fallback defaults for secrets.
+import { resolve } from 'node:path';
 import { z } from 'zod';
+
+// DATA_ROOT default differs by NODE_ENV because prod runs in Docker with a
+// volume mounted at /data/jobs, while dev runs from the developer's laptop
+// and should keep all job artifacts inside the project (./.data/jobs is in
+// .gitignore). The operator can override with an explicit DATA_ROOT env var.
+// Resolved at env-parse time (process.cwd() is stable once Nuxt has booted).
+const DATA_ROOT_DEFAULT =
+  process.env.NODE_ENV === 'production' ? '/data/jobs' : resolve(process.cwd(), '.data/jobs');
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -47,6 +56,11 @@ const EnvSchema = z.object({
   // by default, OFF in dev because pg-boss keeps a connection pool plus a
   // worker subscriber per queue — noticeable memory + socket overhead when
   // you're just iterating on UI. Opt in via SCHEDULER_ENABLED=true in dev.
+  // Filesystem root for per-job artifacts. See DATA_ROOT_DEFAULT above.
+  // Consumers: upload.put.ts, discover/pay/resync/download, admin delete/re-run,
+  // cleanup-jobs-files, cleanup-orphan-files, stripe webhook.
+  DATA_ROOT: z.string().min(1).default(DATA_ROOT_DEFAULT),
+
   SCHEDULER_ENABLED: z
     .string()
     .optional()

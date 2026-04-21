@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import { and, lt, ne, sql } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { jobs } from '../../db/schema';
+import { env } from '../env';
 
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 const BATCH_SIZE = 100;
 
 export async function runCleanupJobsFiles(): Promise<{ purged: number }> {

@@ -45,7 +45,7 @@ import { env } from '../../utils/env';
 import { publishConvert } from '../../utils/queue';
 import { stripe } from '../../utils/stripe';
 
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 const REPLAY_TOLERANCE_S = 300; // 5 minutes — Stripe's default
 
 const UuidSchema = z.string().uuid();
