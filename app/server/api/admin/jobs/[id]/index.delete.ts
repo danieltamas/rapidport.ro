@@ -19,9 +19,10 @@ import { adminAuditLog } from '~/server/db/schema/admin_audit_log';
 import { jobs } from '~/server/db/schema/jobs';
 import { payments } from '~/server/db/schema/payments';
 import { getAdminSession } from '~/server/utils/auth-admin';
+import { env } from '~/server/utils/env';
 
 const USER_AGENT_MAX = 500;
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 
 const ParamsSchema = z.object({ id: z.string().uuid() });
 const BodySchema = z.object({

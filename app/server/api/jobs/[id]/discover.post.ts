@@ -19,11 +19,12 @@ import { db } from '../../../db/client';
 import { jobs } from '../../../db/schema';
 import type { DiscoverPayload } from '../../../types/queue';
 import { assertJobAccess } from '../../../utils/assert-job-access';
+import { env } from '../../../utils/env';
 import { publishDiscover } from '../../../utils/queue';
 
 const ParamsSchema = z.object({ id: z.string().uuid() });
 
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 
 export default defineEventHandler(async (event) => {
   const { id } = await getValidatedRouterParams(event, ParamsSchema.parse);

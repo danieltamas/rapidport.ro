@@ -8,6 +8,26 @@ Entry format: one block per task with job/group/task path, merge commit, brief s
 
 ## 2026-04-21
 
+### fix(server): DATA_ROOT is configurable, dev defaults to project-relative path
+
+Dani hit `ENOENT: no such file or directory, mkdir '/data'` on upload in dev. Nine server files hardcoded `/data/jobs`, which only exists in the Docker prod container. The laptop has no `/data/`, so `mkdir` in `upload.put.ts` blew up.
+
+Added `DATA_ROOT` to the Zod env schema (`app/server/utils/env.ts`) with boot-time conditional default:
+- `NODE_ENV === 'production'` → `/data/jobs` (unchanged, Docker volume mount)
+- otherwise → `resolve(process.cwd(), '.data/jobs')` → `app/app/.data/jobs` in dev (already git-ignored via root `.gitignore`'s `.data/` rule)
+
+Explicit `DATA_ROOT=...` env var overrides both, useful for non-standard deploy shapes.
+
+Nine call sites swapped `const DATA_ROOT = '/data/jobs'` → `const DATA_ROOT = env.DATA_ROOT`:
+- `api/jobs/[id]/{upload.put,discover.post,resync.post,download.get}.ts`
+- `api/admin/jobs/[id]/{index.delete,re-run.post}.ts`
+- `api/webhooks/stripe.post.ts`
+- `utils/schedule-tasks/cleanup-{jobs-files,orphan-files}.ts`
+
+Worker side untouched by design — it receives absolute paths via pg-boss payloads built by Nuxt from `DATA_ROOT`, so it follows whatever root the Nuxt container wrote. Docker keeps parity via the shared `/data/jobs` volume mount; single-host dev keeps parity trivially.
+
+Files: `app/server/utils/env.ts` + 9 call sites. DONE: `jobs/configurable-data-root/DONE-env-var.md`.
+
 ### fix: upload 413 for real this time + disable rate limit in dev
 
 Previous commit `4f113ff` set `/api/jobs/**/upload` on nuxt-security's `requestSizeLimiter` to lift the 8 MB default. It didn't work: 8.1 MB uploads still tripped the default. Compiled bundle inspection showed the rule was registered but not matching at request time.

@@ -34,10 +34,11 @@ import {
 } from 'h3';
 import { z } from 'zod';
 import { assertJobAccess } from '../../../utils/assert-job-access';
+import { env } from '../../../utils/env';
 
 const ParamsSchema = z.object({ id: z.string().uuid() });
 
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 
 export default defineEventHandler(async (event) => {
   // 1. Path param validation.

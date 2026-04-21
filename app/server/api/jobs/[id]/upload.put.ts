@@ -38,11 +38,12 @@ import { z } from 'zod';
 import { db } from '../../../db/client';
 import { jobs } from '../../../db/schema';
 import { assertJobAccess } from '../../../utils/assert-job-access';
+import { env } from '../../../utils/env';
 
 const ParamsSchema = z.object({ id: z.string().uuid() });
 
 const MAX_UPLOAD_BYTES = 524_288_000; // 500 MB
-const DATA_ROOT = '/data/jobs';
+const DATA_ROOT = env.DATA_ROOT;
 
 type ArchiveExt = 'zip' | 'tgz' | '7z';
 
