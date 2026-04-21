@@ -161,11 +161,17 @@ export default defineNuxtConfig({
   // and 8 MB for file-upload requests — both well below our 500 MB spec cap
   // on PUT /api/jobs/{id}/upload (SPEC §2.2 + upload.put.ts MAX_UPLOAD_BYTES).
   // The 8 MB default silently trips 413 BEFORE the handler's own
-  // Content-Length check runs, so even an 8.1 MB WinMentor archive is
-  // rejected. Raise the cap to 500 MB on the upload route only; defaults
-  // stay strict for every other endpoint (defence in depth).
+  // Content-Length check runs.
+  //
+  // Glob is `/api/jobs/**` (not `/api/jobs/**/upload`) because radix3 — the
+  // matcher nuxt-security uses — only supports `**` at the END of a path.
+  // A mid-path `**` silently doesn't match, which is why the previous
+  // `/api/jobs/**/upload` rule didn't take effect. All other /api/jobs/*
+  // endpoints have their own input validation + handler-level size checks,
+  // so relaxing the body cap on them is fine. The upload handler itself
+  // still enforces the 500 MB cap via its own Content-Length check.
   routeRules: {
-    '/api/jobs/**/upload': {
+    '/api/jobs/**': {
       security: {
         requestSizeLimiter: {
           maxRequestSizeInBytes: 524_288_000,       // 500 MB
